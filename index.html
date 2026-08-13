@@ -139,8 +139,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--yellow);
   box-shadow: var(--shadow);
   transform: rotate(-0.18deg);
-  transition: background-color 0.2s ease, transform 0.18s ease, opacity 0.18s ease;
+  transition: background-color 0.2s ease, transform 0.18s ease, opacity 0.18s ease, box-shadow 0.2s ease;
 }
+.postit.attention-1 { box-shadow: inset 0 0 0 2px rgba(183,126,35,0.34), var(--shadow); }
+.postit.attention-2 { box-shadow: inset 0 0 0 3px rgba(197,103,32,0.42), var(--shadow); }
+.postit.attention-3 { box-shadow: inset 0 0 0 4px rgba(155,61,54,0.50), var(--shadow); }
 .postit::after {
   content: "";
   position: absolute;
@@ -371,6 +374,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-radius: 999px;
   background: rgba(255,255,255,0.30);
 }
+.meta-pill.attention-1 { color: #6f5119; background: rgba(255,225,148,0.60); font-weight: 760; }
+.meta-pill.attention-2 { color: #7b3f14; background: rgba(255,196,113,0.62); font-weight: 790; }
+.meta-pill.attention-3 { color: #7b2924; background: rgba(255,166,153,0.60); font-weight: 820; }
 .micro-row {
   display: flex;
   align-items: center;
@@ -595,7 +601,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .card-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; color: #777166; font-size: 0.7rem; }
 .card-actions { display: flex; align-items: center; gap: 5px; padding: 10px 10px 10px 0; }
 .card-actions button { min-height: 34px; padding: 6px 8px; border: 1px solid #ddd6ca; border-radius: 8px; background: #fff; font-size: 0.71rem; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.card.attention-1 { border-color: rgba(183,126,35,0.35); }
+.card.attention-2 { border-color: rgba(197,103,32,0.48); box-shadow: inset 0 0 0 1px rgba(197,103,32,0.08); }
+.card.attention-3 { border-color: rgba(155,61,54,0.58); box-shadow: inset 0 0 0 1px rgba(155,61,54,0.12); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
 .stat { padding: 12px; border: 1px solid #e2dbcf; border-radius: 12px; background: #fff; }
 .stat strong { display: block; font-size: 1.5rem; }
 .stat span { color: #777166; font-size: 0.71rem; }
@@ -647,6 +656,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-weight: 730;
 }
 .time-grid button.selected { border-color: var(--accent); background: rgba(35,82,71,0.10); color: #173f36; }
+.queue-choice { display: grid; gap: 2px; width: 100%; min-height: 54px; padding: 10px 12px; border: 1px solid #d4ccbd; border-radius: 10px; background: #fffdf8; text-align: left; font-weight: 790; }
+.queue-choice span { color: #746d60; font-size: 0.72rem; font-weight: 520; line-height: 1.3; }
+.skip-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 4px; border-top: 1px solid #e6dfd4; }
+.skip-row span { color: #746d60; font-size: 0.72rem; line-height: 1.3; }
 .hint { padding: 9px 10px; border-radius: 9px; background: #f2eee5; color: #645e51; font-size: 0.75rem; line-height: 1.42; }
 .error-text { min-height: 18px; color: var(--danger); font-size: 0.75rem; }
 
@@ -807,8 +820,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 </aside>
 
 <dialog class="dialog" id="snoozeDialog" aria-labelledby="snoozeHeading">
-  <div class="dialog-head"><h2 id="snoozeHeading">Delay this Post-it</h2><button type="button" class="dialog-close" data-close="snoozeDialog" aria-label="Close">&times;</button></div>
+  <div class="dialog-head"><h2 id="snoozeHeading">Later</h2><button type="button" class="dialog-close" data-close="snoozeDialog" aria-label="Close">&times;</button></div>
   <div class="dialog-body">
+    <button type="button" class="queue-choice" id="backQueueBtn">Back of queue<span>Keep it due, but show other due Post-its first.</span></button>
+    <div class="hint">Or snooze it until a specific time:</div>
     <div class="snooze-grid">
       <button type="button" data-snooze="10">10 min</button>
       <button type="button" data-snooze="30">30 min</button>
@@ -818,6 +833,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <button type="button" data-snooze="nextworkday">Next workday</button>
     </div>
     <div class="field"><label for="customSnooze">Or choose a date and time</label><input type="datetime-local" id="customSnooze"></div>
+    <div class="skip-row hidden" id="skipOccurrenceRow"><span>Repeating reminder only: skip this occurrence without marking it done.</span><button type="button" class="secondary-btn" id="skipOccurrenceBtn">Skip occurrence</button></div>
     <div class="error-text" id="snoozeError" role="alert"></div>
   </div>
   <div class="dialog-foot"><button type="button" class="secondary-btn" data-close="snoozeDialog">Cancel</button><button type="button" class="primary-btn" id="customSnoozeBtn">Delay</button></div>
@@ -886,7 +902,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const STORAGE_SCOPE = location.pathname.replace(/\/index\.html$/i, '/').split('/').filter(Boolean).join('_') || 'root';
 
   const CONFIG = Object.freeze({
-    version: 3.2,
+    version: 3.3,
     storageKey: `postitReminderStateV3:${STORAGE_SCOPE}`,
     legacyStorageKey: 'postitReminderV1',
     snapshotKey: `postitReminderSnapshotsV3:${STORAGE_SCOPE}`,
@@ -900,6 +916,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     maxImportBytes: 5 * 1024 * 1024,
     maxReminders: 5000,
     maxHistory: 20000,
+    maxActivity: 50000,
     colours: ['#fff18a', '#ffd6a5', '#caffbf', '#bde0fe', '#ffc8dd', '#e7c6ff'],
     repeats: ['once', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'],
     intervalRepeats: ['daily', 'weekly', 'monthly', 'yearly'],
@@ -1001,6 +1018,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       version: CONFIG.version,
       reminders: [],
       history: [],
+      activity: [],
       settings: {
         defaultColor: '#fff18a',
         historyYear: now().getFullYear(),
@@ -1053,6 +1071,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const migrated = defaultState();
     const rawReminders = Array.isArray(source.reminders) ? source.reminders.slice(0, CONFIG.maxReminders) : [];
     const rawHistory = Array.isArray(source.history) ? source.history.slice(0, CONFIG.maxHistory) : [];
+    const rawActivity = Array.isArray(source.activity) ? source.activity.slice(0, CONFIG.maxActivity) : [];
     const ids = new Set();
 
     migrated.reminders = rawReminders.map((item, index) => {
@@ -1086,6 +1105,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         snoozedUntil,
         manualDueAt,
         snoozeCount: safeNumber(rawReminder.snoozeCount, 0, 100000),
+        deferralCount: safeNumber(rawReminder.deferralCount, 0, 100000),
+        queueDeferredAt: isValidDate(rawReminder.queueDeferredAt) ? new Date(rawReminder.queueDeferredAt).toISOString() : null,
         active: rawReminder.active !== false,
         paused: Boolean(rawReminder.paused),
         createdAt: isValidDate(rawReminder.createdAt) ? new Date(rawReminder.createdAt).toISOString() : now().toISOString(),
@@ -1116,8 +1137,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         completedAt: completedAt.toISOString(),
         completedEarly: Boolean(rawItem.completedEarly),
         snoozeCount: safeNumber(rawItem.snoozeCount, 0, 100000),
+        deferralCount: safeNumber(rawItem.deferralCount, 0, 100000),
         completionNote: cleanText(rawItem.completionNote, 160),
         timerStartedAt: isValidDate(rawItem.timerStartedAt) ? new Date(rawItem.timerStartedAt).toISOString() : null
+      };
+    }).filter(Boolean);
+
+    migrated.activity = rawActivity.map((item, index) => {
+      const rawItem = item && typeof item === 'object' ? item : {};
+      const eventAt = safeDate(rawItem.eventAt, null);
+      if (!eventAt || !['defer','skip'].includes(rawItem.type)) {
+        repairs.push(`Removed invalid queue activity item ${index + 1}.`);
+        return null;
+      }
+      return {
+        id: cleanText(rawItem.id || uid(), 120),
+        type: rawItem.type,
+        eventAt: eventAt.toISOString(),
+        reminderId: cleanText(rawItem.reminderId, 120),
+        title: cleanText(rawItem.title, 80),
+        text: cleanText(rawItem.text, 800),
+        category: cleanText(rawItem.category, 40),
+        repeat: CONFIG.repeats.includes(rawItem.repeat) ? rawItem.repeat : 'once',
+        repeatInterval: safeNumber(rawItem.repeatInterval || 1, 1, CONFIG.maxRepeatInterval),
+        scheduledFor: isValidDate(rawItem.scheduledFor) ? new Date(rawItem.scheduledFor).toISOString() : eventAt.toISOString(),
+        snoozeCount: safeNumber(rawItem.snoozeCount, 0, 100000),
+        deferralCount: safeNumber(rawItem.deferralCount, 0, 100000)
       };
     }).filter(Boolean);
 
@@ -1149,7 +1194,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const result = migrateState(parsed);
       storageInfo.repairs = result.repairs.length;
       if (result.repairs.length) {
-        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.2.`;
+        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.3.`;
       }
       return result.state;
     } catch (error) {
@@ -1460,8 +1505,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   function isRepeating(reminder) { return reminder.repeat !== 'once'; }
   function isDue(reminder) { return reminder.active !== false && !reminder.paused && effectiveDue(reminder) <= now(); }
   function activeList() { return state.reminders.filter(reminder => reminder.active !== false); }
+
+  function attentionMetrics(reminder) {
+    const scheduled = safeDate(reminder.nextAt, now());
+    const overdueMinutes = Math.max(0, Math.floor((Date.now() - scheduled.getTime()) / 60000));
+    const deferrals = safeNumber(reminder.deferralCount, 0, 100000);
+    let overduePoints = 0;
+    if (overdueMinutes >= 3 * 24 * 60) overduePoints = 7;
+    else if (overdueMinutes >= 24 * 60) overduePoints = 5;
+    else if (overdueMinutes >= 8 * 60) overduePoints = 4;
+    else if (overdueMinutes >= 2 * 60) overduePoints = 3;
+    else if (overdueMinutes >= 30) overduePoints = 2;
+    else if (overdueMinutes > 0) overduePoints = 1;
+    const score = overduePoints + Math.min(12, deferrals * 2);
+    const level = score >= 9 ? 3 : score >= 5 ? 2 : score >= 2 ? 1 : 0;
+    const label = level === 3 ? 'Needs attention' : level === 2 ? 'Important' : level === 1 ? 'Attention' : '';
+    return {score, level, label, overdueMinutes, deferrals};
+  }
+
+  function queuePriority(reminder) {
+    const attention = attentionMetrics(reminder);
+    let queuePenalty = 0;
+    if (isValidDate(reminder.queueDeferredAt)) {
+      const minutesSince = Math.max(0, (Date.now() - new Date(reminder.queueDeferredAt).getTime()) / 60000);
+      queuePenalty = minutesSince < 2 ? 50 : minutesSince < 15 ? 6 : 2;
+    }
+    return attention.score - queuePenalty;
+  }
+
   function dueList() {
-    const rows = state.reminders.filter(isDue).sort((a, b) => effectiveDue(a) - effectiveDue(b));
+    const rows = state.reminders.filter(isDue).sort((a, b) => {
+      const priorityDifference = queuePriority(b) - queuePriority(a);
+      return priorityDifference || (effectiveDue(a) - effectiveDue(b));
+    });
     if (ui.pinnedReminderId) {
       const index = rows.findIndex(reminder => reminder.id === ui.pinnedReminderId);
       if (index > 0) rows.unshift(rows.splice(index, 1)[0]);
@@ -1473,6 +1549,25 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     return state.reminders
       .filter(reminder => reminder.active !== false && !reminder.paused && !isDue(reminder))
       .sort((a, b) => effectiveDue(a) - effectiveDue(b));
+  }
+
+  function logQueueActivity(type, reminder, eventAt = now()) {
+    state.activity = Array.isArray(state.activity) ? state.activity : [];
+    state.activity.push({
+      id: uid(),
+      type,
+      eventAt: eventAt.toISOString(),
+      reminderId: reminder.id,
+      title: reminder.title,
+      text: reminder.text,
+      category: reminder.category,
+      repeat: reminder.repeat,
+      repeatInterval: safeNumber(reminder.repeatInterval || 1, 1, CONFIG.maxRepeatInterval),
+      scheduledFor: reminder.nextAt,
+      snoozeCount: safeNumber(reminder.snoozeCount, 0, 100000),
+      deferralCount: safeNumber(reminder.deferralCount, 0, 100000)
+    });
+    if (state.activity.length > CONFIG.maxActivity) state.activity.splice(0, state.activity.length - CONFIG.maxActivity);
   }
 
   function overdueText(date) {
@@ -1598,6 +1693,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const timerForThis = state.timer && state.timer.reminderId === reminder.id;
     const timerActive = Boolean(timerForThis && !state.timer.pausedAt && state.timer.startedAt);
     const chip = upNext ? {text: 'All caught up', className: ''} : dueChip(reminder);
+    const attention = upNext ? {level:0, label:'', deferrals:0} : attentionMetrics(reminder);
+    const attentionText = attention.level ? `${attention.label}${attention.deferrals ? ` · Deferred ${attention.deferrals}×` : ''}` : (attention.deferrals ? `Deferred ${attention.deferrals}×` : '');
     const timerText = timerActive
       ? `${ICONS.pause}<span>Pause timer · <span id="elapsedTime">${esc(humanDurationMs(timerElapsedMs(reminder.id)))}</span></span>`
       : timerForThis
@@ -1616,12 +1713,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         <span class="meta-pill">${esc(repeatLabel(reminder.repeat, reminder.repeatInterval))}</span>
         <span class="meta-pill">${esc(upNext && reminder.snoozedUntil ? `Returns ${fmtShort(displayedDate)}` : fmtShort(displayedDate))}</span>
         ${reminder.plannedMinutes ? `<span class="meta-pill">${reminder.plannedMinutes} min planned</span>` : ''}
+        ${attentionText ? `<span class="meta-pill attention-${attention.level || 1}">${esc(attentionText)}</span>` : ''}
       </div>
       ${upNext ? '' : `<div class="micro-row"><button type="button" class="timer-btn ${timerActive ? 'active' : ''}" id="timerBtn">${timerText}</button>${waiting ? `<span class="behind">${waiting} more due</span>` : ''}</div>`}
       <div class="note-actions">
         ${upNext
           ? '<button type="button" class="action ghost" id="startEarlyBtn">START NOW</button><button type="button" class="action primary" id="doneEarlyBtn">DONE EARLY</button>'
-          : '<button type="button" class="action" id="delayBtn">DELAY</button><button type="button" class="action primary" id="doneBtn">DONE</button>'}
+          : '<button type="button" class="action" id="delayBtn">LATER</button><button type="button" class="action primary" id="doneBtn">DONE</button>'}
       </div>`;
   }
 
@@ -1638,11 +1736,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     }
 
     const note = $('#postit');
+    note.classList.remove('attention-1', 'attention-2', 'attention-3');
     const due = dueList();
     if (due.length) {
       const reminder = due[0];
       ui.currentReminderId = reminder.id;
       note.style.backgroundColor = validColour(reminder.color);
+      const attention = attentionMetrics(reminder);
+      if (attention.level) note.classList.add(`attention-${attention.level}`);
       note.innerHTML = renderReminderBody(reminder, {waiting: due.length - 1});
       $('#moreCurrent').addEventListener('click', event => openEdit(reminder.id, event.currentTarget));
       $('#delayBtn').addEventListener('click', event => openSnooze(reminder.id, event.currentTarget));
@@ -1884,6 +1985,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       snoozedUntil: null,
       manualDueAt: null,
       snoozeCount: 0,
+      deferralCount: 0,
+      queueDeferredAt: null,
       active: true,
       paused: false,
       createdAt: now().toISOString(),
@@ -1901,7 +2004,43 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     ui.currentReminderId = reminderId;
     $('#snoozeError').textContent = '';
     $('#customSnooze').value = isoLocal(new Date(Date.now() + 2 * 3600000));
+    $('#skipOccurrenceRow').classList.toggle('hidden', !isRepeating(state.reminders.find(item => item.id === reminderId)));
     openDialog($('#snoozeDialog'), opener);
+  }
+
+  function putBackInQueue() {
+    const reminder = state.reminders.find(item => item.id === ui.currentReminderId);
+    if (!reminder || !isDue(reminder)) return;
+    closeDialog($('#snoozeDialog'));
+    runMutation({reason: 'putting a Post-it at the back of the queue', undoMessage: 'Post-it moved to the back of the due queue.', animate: true}, () => {
+      reminder.deferralCount = safeNumber(reminder.deferralCount + 1, 0, 100000);
+      reminder.queueDeferredAt = now().toISOString();
+      reminder.updatedAt = now().toISOString();
+      logQueueActivity('defer', reminder);
+      if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
+    });
+  }
+
+  function skipOccurrence() {
+    const reminder = state.reminders.find(item => item.id === ui.currentReminderId);
+    if (!reminder || !isRepeating(reminder)) return;
+    const skippedAt = now();
+    const next = nextOccurrenceAfterCompletion(reminder, skippedAt);
+    if (!next) return;
+    if (!window.confirm(`Skip this occurrence? It will not be marked complete. The next one will be ${fmt(next)}.`)) return;
+    closeDialog($('#snoozeDialog'));
+    runMutation({reason: 'skipping a repeating occurrence', undoMessage: `Occurrence skipped. Next: ${fmt(next)}.`, animate: true}, () => {
+      logQueueActivity('skip', reminder, skippedAt);
+      if (state.timer?.reminderId === reminder.id) state.timer = null;
+      reminder.nextAt = next.toISOString();
+      reminder.snoozedUntil = null;
+      reminder.manualDueAt = null;
+      reminder.snoozeCount = 0;
+      reminder.deferralCount = 0;
+      reminder.queueDeferredAt = null;
+      reminder.updatedAt = skippedAt.toISOString();
+      if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
+    });
   }
 
   function calculateSnooze(value, reminder) {
@@ -1928,6 +2067,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     runMutation({reason: 'delaying a Post-it', undoMessage: `Post-it delayed until ${fmt(date)}.`, animate: true}, () => {
       reminder.snoozedUntil = date.toISOString();
       reminder.manualDueAt = null;
+      reminder.queueDeferredAt = null;
       reminder.snoozeCount = safeNumber(reminder.snoozeCount + 1, 0, 100000);
       reminder.updatedAt = now().toISOString();
       if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
@@ -1949,6 +2089,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     runMutation({reason: 'delaying a Post-it', undoMessage: `Post-it delayed until ${fmt(date)}.`, animate: true}, () => {
       reminder.snoozedUntil = date.toISOString();
       reminder.manualDueAt = null;
+      reminder.queueDeferredAt = null;
       reminder.snoozeCount = safeNumber(reminder.snoozeCount + 1, 0, 100000);
       reminder.updatedAt = now().toISOString();
       if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
@@ -2033,6 +2174,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         completedAt: completedAt.toISOString(),
         completedEarly,
         snoozeCount: reminder.snoozeCount,
+        deferralCount: safeNumber(reminder.deferralCount, 0, 100000),
         completionNote,
         timerStartedAt: state.timer?.reminderId === reminder.id ? (state.timer.firstStartedAt || state.timer.startedAt) : null
       });
@@ -2044,11 +2186,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         reminder.snoozedUntil = null;
         reminder.manualDueAt = null;
         reminder.snoozeCount = 0;
+        reminder.deferralCount = 0;
+        reminder.queueDeferredAt = null;
         reminder.updatedAt = completedAt.toISOString();
       } else {
         reminder.active = false;
         reminder.snoozedUntil = null;
         reminder.manualDueAt = null;
+        reminder.queueDeferredAt = null;
         reminder.updatedAt = completedAt.toISOString();
       }
       if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
@@ -2062,6 +2207,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const previous = deepClone(state);
     reminder.manualDueAt = new Date(Date.now() - 1000).toISOString();
     reminder.snoozedUntil = null;
+    reminder.queueDeferredAt = null;
     reminder.updatedAt = now().toISOString();
     if (startTimer) state.timer = {reminderId, startedAt: now().toISOString(), firstStartedAt: now().toISOString(), accumulatedMs: 0, pausedAt: null};
     saveRecoverySnapshot(previous, 'Before starting a Post-it early');
@@ -2166,6 +2312,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       paused: $('#editPaused').checked,
       snoozedUntil: null,
       manualDueAt: null,
+      queueDeferredAt: null,
       updatedAt: now().toISOString()
     });
     closeDialog($('#editDialog'), true);
@@ -2236,9 +2383,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   function cardHtml(reminder) {
     const status = reminder.paused ? 'Paused' : isDue(reminder) ? overdueText(effectiveDue(reminder)) : fmt(effectiveDue(reminder));
     const actionLabel = reminder.paused ? 'Resume first' : isDue(reminder) ? 'Show' : 'Start';
-    return `<article class="card">
+    const attention = isDue(reminder) ? attentionMetrics(reminder) : {level:0, label:'', deferrals:0};
+    const attentionText = attention.level ? `${attention.label}${attention.deferrals ? ` · Deferred ${attention.deferrals}×` : ''}` : (attention.deferrals ? `Deferred ${attention.deferrals}×` : '');
+    return `<article class="card ${attention.level ? `attention-${attention.level}` : ''}">
       <div class="swatch" style="background:${validColour(reminder.color)}"></div>
-      <div class="card-main"><h3>${esc(reminderDisplayTitle(reminder))}</h3>${reminder.title ? `<p>${esc(reminder.text)}</p>` : ''}<div class="card-meta"><span>${esc(reminder.category || 'Uncategorised')}</span><span>${esc(repeatLabel(reminder.repeat, reminder.repeatInterval))}</span><span>${esc(status)}</span></div></div>
+      <div class="card-main"><h3>${esc(reminderDisplayTitle(reminder))}</h3>${reminder.title ? `<p>${esc(reminder.text)}</p>` : ''}<div class="card-meta"><span>${esc(reminder.category || 'Uncategorised')}</span><span>${esc(repeatLabel(reminder.repeat, reminder.repeatInterval))}</span><span>${esc(status)}</span>${attentionText ? `<span>${esc(attentionText)}</span>` : ''}</div></div>
       <div class="card-actions">
         <button type="button" data-card-action="start" data-id="${esc(reminder.id)}" ${reminder.paused ? 'disabled' : ''}>${actionLabel}</button>
         <button type="button" data-card-action="edit" data-id="${esc(reminder.id)}">Edit</button>
@@ -2296,23 +2445,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   }
 
   function historyYearOptions() {
-    return [...new Set([now().getFullYear(), ...state.history.map(item => new Date(item.completedAt).getFullYear())])].sort((a,b) => b - a);
+    return [...new Set([now().getFullYear(), ...state.history.map(item => new Date(item.completedAt).getFullYear()), ...(state.activity || []).map(item => new Date(item.eventAt).getFullYear())])].sort((a,b) => b - a);
   }
 
   function yearRows(year) {
     return state.history.filter(item => new Date(item.completedAt).getFullYear() === year).sort((a,b) => new Date(a.completedAt) - new Date(b.completedAt));
   }
 
+  function yearActivity(year) {
+    return (state.activity || []).filter(item => new Date(item.eventAt).getFullYear() === year).sort((a,b) => new Date(a.eventAt) - new Date(b.eventAt));
+  }
+
   function summariseYear(year) {
     const rows = yearRows(year);
+    const activityRows = yearActivity(year);
     const totalMinutes = rows.reduce((sum, item) => sum + item.actualMinutes, 0);
     const plannedMinutes = rows.reduce((sum, item) => sum + item.plannedMinutes, 0);
     const snoozes = rows.reduce((sum, item) => sum + item.snoozeCount, 0);
+    const deferrals = activityRows.filter(item => item.type === 'defer').length;
+    const skips = activityRows.filter(item => item.type === 'skip').length;
     const byCategory = new Map();
     const byMonth = new Map();
     rows.forEach(item => {
       const category = item.category || 'Uncategorised';
-      const current = byCategory.get(category) || {count:0, actual:0, planned:0};
+      const current = byCategory.get(category) || {count:0, actual:0, planned:0, deferrals:0, skips:0};
       current.count += 1;
       current.actual += item.actualMinutes;
       current.planned += item.plannedMinutes;
@@ -2320,7 +2476,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const month = new Intl.DateTimeFormat('en-NZ', {month:'long'}).format(new Date(item.completedAt));
       byMonth.set(month, (byMonth.get(month) || 0) + item.actualMinutes);
     });
-    return {year, rows, totalMinutes, plannedMinutes, snoozes, byCategory, byMonth};
+    activityRows.forEach(item => {
+      const category = item.category || 'Uncategorised';
+      const current = byCategory.get(category) || {count:0, actual:0, planned:0, deferrals:0, skips:0};
+      if (item.type === 'defer') current.deferrals += 1;
+      if (item.type === 'skip') current.skips += 1;
+      byCategory.set(category, current);
+    });
+    return {year, rows, activityRows, totalMinutes, plannedMinutes, snoozes, deferrals, skips, byCategory, byMonth};
   }
 
   function renderHistoryDrawer() {
@@ -2352,9 +2515,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const maxCategory = Math.max(1, ...categories.map(([,value]) => value.actual));
     const newestRows = [...summary.rows].sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt));
     $('#historyContent').innerHTML = `
-      <div class="stats"><div class="stat"><strong>${(summary.totalMinutes / 60).toFixed(summary.totalMinutes % 60 ? 1 : 0)}</strong><span>actual hours</span></div><div class="stat"><strong>${(summary.plannedMinutes / 60).toFixed(summary.plannedMinutes % 60 ? 1 : 0)}</strong><span>planned hours</span></div><div class="stat"><strong>${summary.rows.length}</strong><span>completed</span></div><div class="stat"><strong>${summary.snoozes}</strong><span>snoozes</span></div></div>
+      <div class="stats"><div class="stat"><strong>${(summary.totalMinutes / 60).toFixed(summary.totalMinutes % 60 ? 1 : 0)}</strong><span>actual hours</span></div><div class="stat"><strong>${summary.rows.length}</strong><span>completed</span></div><div class="stat"><strong>${summary.deferrals}</strong><span>back-of-queue</span></div><div class="stat"><strong>${summary.skips}</strong><span>skipped</span></div><div class="stat"><strong>${summary.snoozes}</strong><span>snoozes</span></div><div class="stat"><strong>${(summary.plannedMinutes / 60).toFixed(summary.plannedMinutes % 60 ? 1 : 0)}</strong><span>planned hours</span></div></div>
       <div class="panel"><h3>Where the time went</h3>${categories.length ? categories.slice(0,8).map(([category, value]) => `<div class="breakdown-row"><span>${esc(category)}</span><div class="breakdown-track"><div class="breakdown-fill" style="width:${Math.round(value.actual / maxCategory * 100)}%"></div></div><strong>${esc(humanMinutes(value.actual))}</strong></div>`).join('') : '<p class="muted small">No time has been recorded for this year yet.</p>'}</div>
-      <div class="table-wrap"><table class="history-table"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Actual</th></tr></thead><tbody>${newestRows.length ? newestRows.map(item => `<tr><td>${esc(fmt(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${item.actualMinutes} min</td></tr>`).join('') : `<tr><td colspan="4">No completed Post-its for ${summary.year}.</td></tr>`}</tbody></table></div>`;
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Actual</th></tr></thead><tbody>${newestRows.length ? newestRows.map(item => `<tr><td>${esc(fmt(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}${item.deferralCount ? `<br><span class="muted">Deferred ${item.deferralCount}× before completion</span>` : ''}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${item.actualMinutes} min</td></tr>`).join('') : `<tr><td colspan="4">No completed Post-its for ${summary.year}.</td></tr>`}</tbody></table></div>
+      <div class="panel"><h3>Queue activity</h3>${summary.activityRows.length ? `<div class="table-wrap"><table class="history-table"><thead><tr><th>When</th><th>Action</th><th>Post-it</th><th>Category</th></tr></thead><tbody>${[...summary.activityRows].reverse().slice(0,50).map(item => `<tr><td>${esc(fmt(item.eventAt))}</td><td>${item.type === 'defer' ? 'Back of queue' : 'Skipped'}</td><td>${esc(item.title || item.text || 'Post-it')}</td><td>${esc(item.category || 'Uncategorised')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small">No queue deferrals or skipped occurrences for this year.</p>'}</div>`;
   }
 
   function renderSettingsDrawer() {
@@ -2368,9 +2532,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="panel"><h3>Voice capture</h3><p class="small">${speechSupported() ? 'Voice-to-text is available. The microphone starts only after you press the microphone button.' : 'This browser is not exposing voice recognition. Typing remains fully available.'}</p><p class="tiny muted">The browser controls microphone permission and speech processing.</p></div>
       <div class="panel"><h3>Backup and restore</h3><p class="small">Backups include reminders, completion history, categories, timer information and settings.</p><div class="inline"><button type="button" class="primary-btn" id="backupBtn">Export backup</button><button type="button" class="secondary-btn" id="importBtn">Import backup</button></div></div>
       <div class="panel"><h3>Recovery points</h3><p class="small">The app keeps up to ${CONFIG.maxSnapshots} recent local recovery points before important changes. They stay on this computer only.</p><div class="snapshot-list">${snapshots.length ? snapshots.map(snapshot => `<div class="snapshot-item"><div><strong>${esc(snapshot.reason)}</strong><span>${esc(fmt(snapshot.createdAt))}</span></div><button type="button" class="secondary-btn" data-restore-snapshot="${esc(snapshot.id)}">Restore</button></div>`).join('') : '<div class="muted small">No recovery points yet.</div>'}</div></div>
-      <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> delay the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
+      <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> open Later options for the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
       <div class="panel"><h3>Data safety</h3><p class="small">A yearly CSV and printable report are available under Time and history.</p><button type="button" class="danger-btn" id="resetBtn">Reset all data</button></div>
-      <div class="panel"><h3>About V3.2</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving and flexible repeat intervals, designed to become the interface of the later Windows app.</p></div>`;
+      <div class="panel"><h3>About V3.3</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, a due queue, progressive attention, and year-end activity reporting.</p></div>`;
     $('#defaultColor').value = validColour(state.settings.defaultColor);
     $('#defaultColor').addEventListener('change', event => {
       state.settings.defaultColor = validColour(event.target.value);
@@ -2483,7 +2647,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const candidate = parsed && typeof parsed === 'object' && parsed.state ? parsed.state : parsed;
     if (!candidate || typeof candidate !== 'object') throw new Error('The file does not contain an app data object.');
     if (!Array.isArray(candidate.reminders) || !Array.isArray(candidate.history)) throw new Error('The file is missing reminder or history data.');
-    if (candidate.reminders.length > CONFIG.maxReminders || candidate.history.length > CONFIG.maxHistory) throw new Error('The file contains more records than this version can safely load.');
+    if (candidate.activity != null && !Array.isArray(candidate.activity)) throw new Error('The queue activity data is not valid.');
+    if (candidate.reminders.length > CONFIG.maxReminders || candidate.history.length > CONFIG.maxHistory || (candidate.activity?.length || 0) > CONFIG.maxActivity) throw new Error('The file contains more records than this version can safely load.');
     return migrateState(candidate);
   }
 
@@ -2511,7 +2676,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         const parsed = JSON.parse(String(reader.result));
         const result = validateImportObject(parsed);
         const note = result.repairs.length ? `\n\n${result.repairs.length} field(s) will be repaired during import.` : '';
-        if (!window.confirm(`Replace the current data with ${result.state.reminders.length} reminder(s) and ${result.state.history.length} history record(s)?${note}`)) return;
+        if (!window.confirm(`Replace the current data with ${result.state.reminders.length} reminder(s), ${result.state.history.length} completion record(s), and ${result.state.activity.length} queue activity record(s)?${note}`)) return;
         saveRecoverySnapshot(state, 'Before importing a backup');
         state = result.state;
         persistState();
@@ -2543,26 +2708,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       ['Planned minutes', summary.plannedMinutes],
       ['Variance minutes', summary.totalMinutes - summary.plannedMinutes],
       ['Total snoozes', summary.snoozes],
+      ['Back-of-queue deferrals', summary.deferrals],
+      ['Skipped occurrences', summary.skips],
       [],
       ['CATEGORY SUMMARY'],
-      ['Category','Completions','Actual minutes','Actual hours','Planned minutes','Variance minutes']
+      ['Category','Completions','Actual minutes','Actual hours','Planned minutes','Variance minutes','Deferrals','Skips']
     ];
-    [...summary.byCategory.entries()].sort((a,b) => b[1].actual - a[1].actual).forEach(([category, value]) => rows.push([category, value.count, value.actual, (value.actual / 60).toFixed(2), value.planned, value.actual - value.planned]));
+    [...summary.byCategory.entries()].sort((a,b) => b[1].actual - a[1].actual).forEach(([category, value]) => rows.push([category, value.count, value.actual, (value.actual / 60).toFixed(2), value.planned, value.actual - value.planned, value.deferrals, value.skips]));
     rows.push([], ['MONTHLY SUMMARY'], ['Month','Actual minutes','Actual hours']);
     [...summary.byMonth.entries()].forEach(([month, minutes]) => rows.push([month, minutes, (minutes / 60).toFixed(2)]));
-    rows.push([], ['COMPLETION DETAIL'], ['Completed','Title','Reminder','Category','Actual minutes','Planned minutes','Variance','Repeat','Scheduled for','Completed early','Snoozes','Completion note','Timer started']);
+    rows.push([], ['COMPLETION DETAIL'], ['Completed','Title','Reminder','Category','Actual minutes','Planned minutes','Variance','Repeat','Scheduled for','Completed early','Snoozes','Deferrals before completion','Completion note','Timer started']);
     summary.rows.forEach(item => rows.push([
       fmt(item.completedAt), item.title, item.text, item.category || 'Uncategorised', item.actualMinutes, item.plannedMinutes,
-      item.actualMinutes - item.plannedMinutes, repeatLabel(item.repeat, item.repeatInterval), fmt(item.scheduledFor), item.completedEarly ? 'Yes' : 'No', item.snoozeCount,
+      item.actualMinutes - item.plannedMinutes, repeatLabel(item.repeat, item.repeatInterval), fmt(item.scheduledFor), item.completedEarly ? 'Yes' : 'No', item.snoozeCount, item.deferralCount || 0,
       item.completionNote, item.timerStartedAt ? fmt(item.timerStartedAt) : ''
     ]));
+    rows.push([], ['QUEUE ACTIVITY DETAIL'], ['When','Action','Title','Reminder','Category','Repeat','Scheduled for','Deferral count','Snooze count']);
+    summary.activityRows.forEach(item => rows.push([fmt(item.eventAt), item.type === 'defer' ? 'Back of queue' : 'Skipped occurrence', item.title, item.text, item.category || 'Uncategorised', repeatLabel(item.repeat, item.repeatInterval), fmt(item.scheduledFor), item.deferralCount, item.snoozeCount]));
     const csv = '\ufeff' + rows.map(row => row.map(safeCsvText).join(',')).join('\r\n');
     downloadFile(`postit-time-report-${year}-${localDate(now())}.csv`, csv, 'text/csv;charset=utf-8');
     toast(`${year} CSV report exported.`);
   }
 
   function standaloneReportStyles() {
-    return `<style>body{font-family:Segoe UI,Arial,sans-serif;color:#222;margin:32px;line-height:1.4}h1{margin-bottom:4px}.sub{color:#666;margin-top:0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{border:1px solid #bbb;border-radius:8px;padding:12px}.stat strong{font-size:24px;display:block}.stat span{font-size:12px;color:#666}table{width:100%;border-collapse:collapse;margin:12px 0 26px;font-size:12px}th,td{border:1px solid #bbb;padding:7px;text-align:left;vertical-align:top}th{background:#f1f1f1}@media(max-width:700px){body{margin:16px}.stats{grid-template-columns:1fr 1fr}table{font-size:11px}}@media print{@page{size:A4 portrait;margin:15mm}body{margin:0}.page{break-before:page}}</style>`;
+    return `<style>body{font-family:Segoe UI,Arial,sans-serif;color:#222;margin:32px;line-height:1.4}h1{margin-bottom:4px}.sub{color:#666;margin-top:0}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{border:1px solid #bbb;border-radius:8px;padding:12px}.stat strong{font-size:24px;display:block}.stat span{font-size:12px;color:#666}table{width:100%;border-collapse:collapse;margin:12px 0 26px;font-size:12px}th,td{border:1px solid #bbb;padding:7px;text-align:left;vertical-align:top}th{background:#f1f1f1}@media(max-width:700px){body{margin:16px}.stats{grid-template-columns:1fr 1fr}table{font-size:11px}}@media print{@page{size:A4 portrait;margin:15mm}body{margin:0}.page{break-before:page}}</style>`;
   }
 
   function varianceLabel(actual, planned) {
@@ -2577,13 +2746,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     return `<h1 class="${standalone ? '' : 'print-title'}">Post-it Reminder: ${summary.year} time report</h1><p class="${standalone ? 'sub' : 'print-sub'}">Generated ${esc(fmt(now()))}. This report is based on completed Post-its with recorded time.</p>
       <div class="${standalone ? 'stats' : 'print-stats'}">
         <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${(summary.totalMinutes / 60).toFixed(2)}</strong><span>actual hours</span></div>
-        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${(summary.plannedMinutes / 60).toFixed(2)}</strong><span>planned hours</span></div>
         <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${summary.rows.length}</strong><span>completed</span></div>
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${summary.deferrals}</strong><span>back-of-queue</span></div>
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${summary.skips}</strong><span>skipped</span></div>
         <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${summary.snoozes}</strong><span>snoozes</span></div>
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${(summary.plannedMinutes / 60).toFixed(2)}</strong><span>planned hours</span></div>
       </div>
-      <section class="${standalone ? '' : 'print-section'}"><h2>Category summary</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Category</th><th>Completed</th><th>Actual</th><th>Planned</th><th>Variance</th></tr></thead><tbody>${categories.length ? categories.map(([category,value]) => `<tr><td>${esc(category)}</td><td>${value.count}</td><td>${esc(humanMinutes(value.actual))}</td><td>${esc(humanMinutes(value.planned))}</td><td>${esc(varianceLabel(value.actual, value.planned))}</td></tr>`).join('') : '<tr><td colspan="5">No completed Post-its.</td></tr>'}</tbody></table></section>
+      <section class="${standalone ? '' : 'print-section'}"><h2>Category summary</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Category</th><th>Completed</th><th>Actual</th><th>Planned</th><th>Variance</th><th>Deferrals</th><th>Skips</th></tr></thead><tbody>${categories.length ? categories.map(([category,value]) => `<tr><td>${esc(category)}</td><td>${value.count}</td><td>${esc(humanMinutes(value.actual))}</td><td>${esc(humanMinutes(value.planned))}</td><td>${esc(varianceLabel(value.actual, value.planned))}</td><td>${value.deferrals}</td><td>${value.skips}</td></tr>`).join('') : '<tr><td colspan="7">No completed Post-its or queue activity.</td></tr>'}</tbody></table></section>
       <section class="${standalone ? '' : 'print-section'}"><h2>Monthly totals</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Month</th><th>Time</th></tr></thead><tbody>${months.length ? months.map(([month,minutes]) => `<tr><td>${esc(month)}</td><td>${esc(humanMinutes(minutes))}</td></tr>`).join('') : '<tr><td colspan="2">No recorded time.</td></tr>'}</tbody></table></section>
-      <section class="${standalone ? 'page' : 'print-section print-page-break'}"><h2>Completion detail</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Repeat</th><th>Actual</th><th>Planned</th></tr></thead><tbody>${summary.rows.length ? summary.rows.map(item => `<tr><td>${esc(fmtDateOnly(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${esc(repeatLabel(item.repeat, item.repeatInterval))}</td><td>${item.actualMinutes} min</td><td>${item.plannedMinutes} min</td></tr>`).join('') : '<tr><td colspan="6">No completed Post-its.</td></tr>'}</tbody></table></section>`;
+      <section class="${standalone ? 'page' : 'print-section print-page-break'}"><h2>Completion detail</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Repeat</th><th>Actual</th><th>Planned</th><th>Deferrals</th></tr></thead><tbody>${summary.rows.length ? summary.rows.map(item => `<tr><td>${esc(fmtDateOnly(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${esc(repeatLabel(item.repeat, item.repeatInterval))}</td><td>${item.actualMinutes} min</td><td>${item.plannedMinutes} min</td><td>${item.deferralCount || 0}</td></tr>`).join('') : '<tr><td colspan="7">No completed Post-its.</td></tr>'}</tbody></table></section>
+      <section class="${standalone ? 'page' : 'print-section print-page-break'}"><h2>Queue activity</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>When</th><th>Action</th><th>Post-it</th><th>Category</th><th>Scheduled for</th></tr></thead><tbody>${summary.activityRows.length ? summary.activityRows.map(item => `<tr><td>${esc(fmtDateOnly(item.eventAt))}</td><td>${item.type === 'defer' ? 'Back of queue' : 'Skipped occurrence'}</td><td>${esc(item.title || item.text || 'Post-it')}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${esc(fmtDateOnly(item.scheduledFor))}</td></tr>`).join('') : '<tr><td colspan="5">No queue deferrals or skipped occurrences.</td></tr>'}</tbody></table></section>`;
   }
 
   function printYearReport() {
@@ -2865,6 +3037,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     $('#deleteEditBtn').addEventListener('click', deleteCurrentEdit);
     $('#completeBtn').addEventListener('click', completeReminder);
     $('#customSnoozeBtn').addEventListener('click', applyCustomSnooze);
+    $('#backQueueBtn').addEventListener('click', putBackInQueue);
+    $('#skipOccurrenceBtn').addEventListener('click', skipOccurrence);
     $('#importFile').addEventListener('change', event => {
       importBackup(event.target.files[0]);
       event.target.value = '';
