@@ -1,67 +1,54 @@
-'use strict';
+POST-IT REMINDER V3.1 - PERSISTENT PWA
+=====================================
 
-const CACHE_NAME = 'postit-reminder-v3-pwa-1';
-const APP_SHELL = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png'
-];
+WHAT CHANGED
+------------
+This build keeps the V3 interface but strengthens automatic saving.
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
-});
+The app now stores reminder state in TWO browser storage systems:
+1. IndexedDB (durable primary copy)
+2. localStorage (compatibility / immediate mirror)
 
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
-});
+On startup it checks both copies and automatically restores the usable/newer one.
+It also asks the browser for persistent site storage when the HTTPS environment
+supports it. No account or cloud database is required.
 
-self.addEventListener('fetch', event => {
-  const request = event.request;
-  if (request.method !== 'GET') return;
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+GITHUB PAGES DEPLOYMENT
+-----------------------
+Upload the CONTENTS of this folder to the same GitHub Pages site/repository path:
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy)));
-          }
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
+  index.html
+  manifest.webmanifest
+  service-worker.js
+  icons/
 
-  event.respondWith(
-    caches.match(request).then(cached => {
-      const network = fetch(request).then(response => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, copy)));
-        }
-        return response;
-      });
-      if (cached) {
-        event.waitUntil(network.catch(() => undefined));
-        return cached;
-      }
-      return network;
-    })
-  );
-});
+Keep using the SAME public GitHub Pages URL. Browser/PWA data belongs to the
+site origin, so changing to another domain/account/profile creates a separate
+storage area.
+
+After GitHub Pages finishes deploying:
+1. Open the public GitHub Pages URL in Edge.
+2. Refresh once (Ctrl+F5 is useful after replacing an older build).
+3. Create a test Post-it.
+4. Close the installed app completely.
+5. Reopen it from Start. The Post-it should still be present.
+
+If you previously used the old local HTML or localhost build, import a JSON
+backup once. Those are different origins and cannot share browser storage.
+
+IMPORTANT BROWSER CASES
+-----------------------
+- InPrivate/Incognito storage is deliberately removed when the private session ends.
+- A browser policy/setting that explicitly clears site data on exit can still erase
+  web-app storage. No PWA can override an explicit user/admin data-clearing policy.
+- Use the same Edge/Chrome profile that installed the PWA.
+
+LOCAL TESTING
+-------------
+You can still use Start PWA Test Server.bat on Windows for a localhost test.
+Data saved on localhost is separate from data saved on your GitHub Pages URL.
+
+BACKUPS
+-------
+The app still includes JSON backup/import. Automatic local persistence is the
+normal save method; backups are for portability and extra safety.
