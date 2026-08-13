@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Post-it Reminder",
   "short_name": "Post-it",
-  "description": "A simple floating Post-it reminder and time-tracking app with durable automatic local saving.",
+  "description": "A simple floating Post-it reminder and time-tracking app with durable saving and flexible repeat intervals.",
   "lang": "en-NZ",
   "start_url": "./index.html",
   "scope": "./",

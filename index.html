@@ -478,6 +478,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .preset-btn.selected { border-color: var(--accent); background: rgba(35,82,71,0.12); color: #173f36; }
 .schedule-row { display: grid; grid-template-columns: 1.1fr 0.72fr 0.9fr; gap: 7px; margin-top: 7px; }
+.repeat-custom-row { display: grid; grid-template-columns: auto 0.62fr 1fr; gap: 7px; align-items: center; margin-top: 7px; padding: 7px 9px; border-radius: 9px; background: rgba(255,255,255,0.28); }
+.repeat-custom-row > span { font-size: 0.74rem; font-weight: 760; color: #514c3f; }
+.repeat-custom-row input, .repeat-custom-row select { width: 100%; min-height: 38px; border: 1px solid rgba(60,54,42,0.19); border-radius: 9px; background: rgba(255,255,255,0.72); padding: 7px 8px; }
 .schedule-row input, .schedule-row select,
 .mini-field input, .mini-field select,
 .field input, .field select, .field textarea,
@@ -855,7 +858,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="field"><label for="editColor">Colour</label><select id="editColor"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div>
     </div>
     <div class="row"><div class="field"><label for="editDate">Date</label><input id="editDate" type="date"></div><div class="field"><label for="editTime">Time</label><input id="editTime" type="time"></div></div>
-    <div class="field"><label for="editRepeat">Repeat</label><select id="editRepeat"><option value="once">One time</option><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div>
+    <div class="field"><label for="editRepeat">Repeat</label><select id="editRepeat"><option value="once">One time</option><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option><option value="custom">Custom interval...</option></select></div>
+    <div class="repeat-custom-row hidden" id="editRepeatCustom" aria-hidden="true"><span>Every</span><input id="editRepeatEvery" type="number" min="1" max="99" step="1" inputmode="numeric" value="2" aria-label="Repeat interval"><select id="editRepeatUnit" aria-label="Repeat interval unit"><option value="daily">days</option><option value="weekly" selected>weeks</option><option value="monthly">months</option><option value="yearly">years</option></select></div>
     <div class="schedule-preview" id="editSchedulePreview" aria-live="polite"></div>
     <label class="inline small"><input type="checkbox" id="editPaused"> Pause this Post-it</label>
     <div class="error-text" id="editError" role="alert"></div>
@@ -882,7 +886,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const STORAGE_SCOPE = location.pathname.replace(/\/index\.html$/i, '/').split('/').filter(Boolean).join('_') || 'root';
 
   const CONFIG = Object.freeze({
-    version: 3,
+    version: 3.2,
     storageKey: `postitReminderStateV3:${STORAGE_SCOPE}`,
     legacyStorageKey: 'postitReminderV1',
     snapshotKey: `postitReminderSnapshotsV3:${STORAGE_SCOPE}`,
@@ -897,7 +901,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     maxReminders: 5000,
     maxHistory: 20000,
     colours: ['#fff18a', '#ffd6a5', '#caffbf', '#bde0fe', '#ffc8dd', '#e7c6ff'],
-    repeats: ['once', 'daily', 'weekdays', 'weekly', 'monthly']
+    repeats: ['once', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'],
+    intervalRepeats: ['daily', 'weekly', 'monthly', 'yearly'],
+    maxRepeatInterval: 99
   });
 
   const ICONS = Object.freeze({
@@ -929,7 +935,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const fmt = value => new Intl.DateTimeFormat('en-NZ', {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(value));
   const fmtShort = value => new Intl.DateTimeFormat('en-NZ', {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'}).format(new Date(value));
   const fmtDateOnly = value => new Intl.DateTimeFormat('en-NZ', {dateStyle: 'medium'}).format(new Date(value));
-  const repeatLabel = value => ({once:'One-off', daily:'Daily', weekdays:'Weekdays', weekly:'Weekly', monthly:'Monthly'})[value] || 'One-off';
+  const repeatLabel = (value, repeatInterval = 1) => {
+    const interval = safeNumber(repeatInterval || 1, 1, CONFIG.maxRepeatInterval);
+    if (value === 'once') return 'One-off';
+    if (value === 'weekdays') return 'Weekdays';
+    if (interval === 1) return ({daily:'Daily', weekly:'Weekly', monthly:'Monthly', yearly:'Yearly'})[value] || 'One-off';
+    const unit = ({daily:'day', weekly:'week', monthly:'month', yearly:'year'})[value];
+    return unit ? `Every ${interval} ${unit}s` : 'One-off';
+  };
   const humanMinutes = minutes => {
     const total = Math.max(0, Math.round(Number(minutes) || 0));
     if (total < 60) return `${total} min`;
@@ -1055,6 +1068,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       if (!isValidDate(rawReminder.nextAt)) repairs.push(`Repaired the date for reminder ${index + 1}.`);
       const repeat = CONFIG.repeats.includes(rawReminder.repeat) ? rawReminder.repeat : 'once';
       if (repeat !== rawReminder.repeat && rawReminder.repeat != null) repairs.push(`Repaired the repeat setting for reminder ${index + 1}.`);
+      const repeatInterval = (repeat === 'once' || repeat === 'weekdays') ? 1 : safeNumber(rawReminder.repeatInterval || 1, 1, CONFIG.maxRepeatInterval);
       const snoozedUntil = isValidDate(rawReminder.snoozedUntil) ? new Date(rawReminder.snoozedUntil).toISOString() : null;
       const manualDueAt = isValidDate(rawReminder.manualDueAt) ? new Date(rawReminder.manualDueAt).toISOString() : null;
       return {
@@ -1065,8 +1079,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         plannedMinutes: safeNumber(rawReminder.plannedMinutes, 0, 1440),
         color: validColour(rawReminder.color || source.settings?.defaultColor),
         repeat,
+        repeatInterval,
         nextAt: nextDate.toISOString(),
         anchorDay: safeNumber(rawReminder.anchorDay || nextDate.getDate(), 1, 31),
+        anchorMonth: safeNumber(rawReminder.anchorMonth ?? nextDate.getMonth(), 0, 11),
         snoozedUntil,
         manualDueAt,
         snoozeCount: safeNumber(rawReminder.snoozeCount, 0, 100000),
@@ -1094,6 +1110,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         plannedMinutes: safeNumber(rawItem.plannedMinutes, 0, 1440),
         actualMinutes: safeNumber(rawItem.actualMinutes, 0, 1440),
         repeat: CONFIG.repeats.includes(rawItem.repeat) ? rawItem.repeat : 'once',
+        repeatInterval: safeNumber(rawItem.repeatInterval || 1, 1, CONFIG.maxRepeatInterval),
         scheduledFor: isValidDate(rawItem.scheduledFor) ? new Date(rawItem.scheduledFor).toISOString() : completedAt.toISOString(),
         effectiveDue: isValidDate(rawItem.effectiveDue) ? new Date(rawItem.effectiveDue).toISOString() : completedAt.toISOString(),
         completedAt: completedAt.toISOString(),
@@ -1132,7 +1149,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const result = migrateState(parsed);
       storageInfo.repairs = result.repairs.length;
       if (result.repairs.length) {
-        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.`;
+        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.2.`;
       }
       return result.state;
     } catch (error) {
@@ -1474,8 +1491,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   function addOneOccurrence(date, reminder) {
     const result = new Date(date);
     result.setSeconds(0, 0);
+    const interval = safeNumber(reminder.repeatInterval || 1, 1, CONFIG.maxRepeatInterval);
     if (reminder.repeat === 'daily') {
-      result.setDate(result.getDate() + 1);
+      result.setDate(result.getDate() + interval);
       return result;
     }
     if (reminder.repeat === 'weekdays') {
@@ -1483,15 +1501,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       return result;
     }
     if (reminder.repeat === 'weekly') {
-      result.setDate(result.getDate() + 7);
+      result.setDate(result.getDate() + (7 * interval));
       return result;
     }
     if (reminder.repeat === 'monthly') {
       const anchorDay = safeNumber(reminder.anchorDay || result.getDate(), 1, 31);
-      const year = result.getFullYear();
-      const month = result.getMonth() + 1;
+      const totalMonths = (result.getFullYear() * 12) + result.getMonth() + interval;
+      const year = Math.floor(totalMonths / 12);
+      const month = ((totalMonths % 12) + 12) % 12;
       const lastDay = new Date(year, month + 1, 0).getDate();
       return new Date(year, month, Math.min(anchorDay, lastDay), result.getHours(), result.getMinutes(), 0, 0);
+    }
+    if (reminder.repeat === 'yearly') {
+      const anchorDay = safeNumber(reminder.anchorDay || result.getDate(), 1, 31);
+      const anchorMonth = safeNumber(reminder.anchorMonth ?? result.getMonth(), 0, 11);
+      const year = result.getFullYear() + interval;
+      const lastDay = new Date(year, anchorMonth + 1, 0).getDate();
+      return new Date(year, anchorMonth, Math.min(anchorDay, lastDay), result.getHours(), result.getMinutes(), 0, 0);
     }
     return null;
   }
@@ -1587,7 +1613,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       ${hasTitle ? `<h1 class="note-title">${esc(reminder.title)}</h1><div class="note-copy">${esc(reminder.text)}</div>` : `<h1 class="note-copy primary-copy">${esc(reminder.text)}</h1>`}
       <div class="note-meta">
         ${reminder.category ? `<span class="meta-pill">${esc(reminder.category)}</span>` : ''}
-        <span class="meta-pill">${esc(repeatLabel(reminder.repeat))}</span>
+        <span class="meta-pill">${esc(repeatLabel(reminder.repeat, reminder.repeatInterval))}</span>
         <span class="meta-pill">${esc(upNext && reminder.snoozedUntil ? `Returns ${fmtShort(displayedDate)}` : fmtShort(displayedDate))}</span>
         ${reminder.plannedMinutes ? `<span class="meta-pill">${reminder.plannedMinutes} min planned</span>` : ''}
       </div>
@@ -1675,16 +1701,45 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     return suggestedLaterToday();
   }
 
-  function schedulePreviewText(date, repeat) {
+  function repeatConfigFromControls(prefix) {
+    const repeatControl = $(`#${prefix}Repeat`);
+    const selected = repeatControl?.value || 'once';
+    if (selected !== 'custom') {
+      return {repeat: CONFIG.repeats.includes(selected) ? selected : 'once', repeatInterval: 1, error: ''};
+    }
+    const unitControl = $(`#${prefix}RepeatUnit`);
+    const intervalControl = $(`#${prefix}RepeatEvery`);
+    const repeat = CONFIG.intervalRepeats.includes(unitControl?.value) ? unitControl.value : 'weekly';
+    const repeatInterval = Number(intervalControl?.value);
+    if (!Number.isInteger(repeatInterval) || repeatInterval < 1 || repeatInterval > CONFIG.maxRepeatInterval) {
+      return {repeat, repeatInterval: 1, error: `Repeat interval must be a whole number from 1 to ${CONFIG.maxRepeatInterval}.`};
+    }
+    return {repeat, repeatInterval, error: ''};
+  }
+
+  function setRepeatCustomVisibility(prefix) {
+    const repeatControl = $(`#${prefix}Repeat`);
+    const customRow = $(`#${prefix}RepeatCustom`);
+    if (!repeatControl || !customRow) return;
+    const visible = repeatControl.value === 'custom';
+    customRow.classList.toggle('hidden', !visible);
+    customRow.setAttribute('aria-hidden', String(!visible));
+    customRow.querySelectorAll('input, select').forEach(control => { control.disabled = !visible; });
+  }
+
+  function schedulePreviewText(date, repeat, repeatInterval = 1) {
     if (!date || Number.isNaN(date.getTime())) return 'Choose a valid date and time.';
+    const interval = safeNumber(repeatInterval || 1, 1, CONFIG.maxRepeatInterval);
     const immediate = date <= now() ? 'This Post-it will appear immediately. ' : '';
-    const repeatText = {
-      once: 'It will appear once.',
-      daily: 'It will then repeat every day.',
-      weekdays: 'It will then repeat each weekday.',
-      weekly: `It will then repeat every ${new Intl.DateTimeFormat('en-NZ', {weekday:'long'}).format(date)}.`,
-      monthly: `It will then repeat monthly on day ${date.getDate()}.`
-    }[repeat] || '';
+    const weekday = new Intl.DateTimeFormat('en-NZ', {weekday:'long'}).format(date);
+    const annualDate = new Intl.DateTimeFormat('en-NZ', {day:'numeric', month:'long'}).format(date);
+    let repeatText = '';
+    if (repeat === 'once') repeatText = 'It will appear once.';
+    else if (repeat === 'weekdays') repeatText = 'It will then repeat each weekday.';
+    else if (repeat === 'daily') repeatText = interval === 1 ? 'It will then repeat every day.' : `It will then repeat every ${interval} days.`;
+    else if (repeat === 'weekly') repeatText = interval === 1 ? `It will then repeat every ${weekday}.` : `It will then repeat every ${interval} weeks on ${weekday}.`;
+    else if (repeat === 'monthly') repeatText = interval === 1 ? `It will then repeat monthly on day ${date.getDate()}.` : `It will then repeat every ${interval} months on day ${date.getDate()}.`;
+    else if (repeat === 'yearly') repeatText = interval === 1 ? `It will then repeat every year on ${annualDate}.` : `It will then repeat every ${interval} years on ${annualDate}.`;
     return `${immediate}Next: ${fmt(date)}. ${repeatText}`;
   }
 
@@ -1746,7 +1801,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         <button type="button" class="preset-btn" data-preset="nextworkday">Next workday</button>
         <button type="button" class="preset-btn" data-preset="custom">Choose date</button>
       </div>
-      <div class="schedule-row"><input type="date" id="quickDate" value="${localDate(date)}" aria-label="Reminder date"><input type="time" id="quickTime" value="${localTime(date)}" aria-label="Reminder time"><select id="quickRepeat" aria-label="Repeat"><option value="once">One time</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+      <div class="schedule-row"><input type="date" id="quickDate" value="${localDate(date)}" aria-label="Reminder date"><input type="time" id="quickTime" value="${localTime(date)}" aria-label="Reminder time"><select id="quickRepeat" aria-label="Repeat"><option value="once">One time</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="custom">Custom interval...</option></select></div>
+      <div class="repeat-custom-row hidden" id="quickRepeatCustom" aria-hidden="true"><span>Every</span><input id="quickRepeatEvery" type="number" min="1" max="99" step="1" inputmode="numeric" value="2" aria-label="Repeat interval"><select id="quickRepeatUnit" aria-label="Repeat interval unit"><option value="daily">days</option><option value="weekly" selected>weeks</option><option value="monthly">months</option><option value="yearly">years</option></select></div>
       <div class="schedule-preview" id="quickSchedulePreview" aria-live="polite"></div>
       <details class="capture-details"><summary>More options</summary><div class="details-grid"><div class="mini-field"><input id="quickCategory" list="categorySuggestions" maxlength="40" placeholder="Category e.g. Admin" aria-label="Category"></div><div class="mini-field"><input id="quickMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric" placeholder="Planned min" aria-label="Planned minutes"></div><div class="mini-field"><select id="quickColor" aria-label="Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div></div></details>
       <div class="error-text" id="quickError" role="alert"></div>
@@ -1758,8 +1814,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     $('#captureSave').addEventListener('click', saveQuick);
     $('#quickMic').addEventListener('click', () => toggleVoice());
     $$('.preset-btn').forEach(button => button.addEventListener('click', () => applyPreset(button.dataset.preset)));
-    ['quickDate','quickTime','quickRepeat'].forEach(id => $(`#${id}`).addEventListener('input', updateQuickSchedulePreview));
+    $('#quickRepeat').addEventListener('change', () => { setRepeatCustomVisibility('quick'); ui.captureDirty = true; updateQuickSchedulePreview(); });
+    ['quickDate','quickTime','quickRepeatEvery','quickRepeatUnit'].forEach(id => $(`#${id}`).addEventListener('input', () => { ui.captureDirty = true; updateQuickSchedulePreview(); }));
     ['quickText','quickCategory','quickMinutes','quickColor'].forEach(id => $(`#${id}`).addEventListener('input', () => { ui.captureDirty = true; }));
+    setRepeatCustomVisibility('quick');
     updateQuickSchedulePreview();
   }
 
@@ -1777,7 +1835,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
   function updateQuickSchedulePreview() {
     const date = parseLocal($('#quickDate').value, $('#quickTime').value);
-    $('#quickSchedulePreview').textContent = schedulePreviewText(date, $('#quickRepeat').value);
+    const repeatConfig = repeatConfigFromControls('quick');
+    $('#quickSchedulePreview').textContent = repeatConfig.error || schedulePreviewText(date, repeatConfig.repeat, repeatConfig.repeatInterval);
   }
 
   function saveQuick() {
@@ -1802,7 +1861,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       $('#quickMinutes').focus();
       return;
     }
-    const repeat = CONFIG.repeats.includes($('#quickRepeat').value) ? $('#quickRepeat').value : 'once';
+    const repeatConfig = repeatConfigFromControls('quick');
+    if (repeatConfig.error) {
+      error.textContent = repeatConfig.error;
+      $('#quickRepeatEvery').focus();
+      return;
+    }
+    const {repeat, repeatInterval} = repeatConfig;
     const previous = deepClone(state);
     state.reminders.push({
       id: uid(),
@@ -1812,8 +1877,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       plannedMinutes,
       color: validColour($('#quickColor').value),
       repeat,
+      repeatInterval,
       nextAt: date.toISOString(),
       anchorDay: date.getDate(),
+      anchorMonth: date.getMonth(),
       snoozedUntil: null,
       manualDueAt: null,
       snoozeCount: 0,
@@ -1960,6 +2027,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         plannedMinutes: reminder.plannedMinutes,
         actualMinutes,
         repeat: reminder.repeat,
+        repeatInterval: safeNumber(reminder.repeatInterval || 1, 1, CONFIG.maxRepeatInterval),
         scheduledFor: reminder.nextAt,
         effectiveDue: effectiveDue(reminder).toISOString(),
         completedAt: completedAt.toISOString(),
@@ -2012,6 +2080,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       date: $('#editDate').value,
       time: $('#editTime').value,
       repeat: $('#editRepeat').value,
+      repeatEvery: $('#editRepeatEvery').value,
+      repeatUnit: $('#editRepeatUnit').value,
       paused: $('#editPaused').checked
     });
   }
@@ -2029,7 +2099,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const date = new Date(reminder.nextAt);
     $('#editDate').value = localDate(date);
     $('#editTime').value = localTime(date);
-    $('#editRepeat').value = reminder.repeat;
+    const repeatInterval = safeNumber(reminder.repeatInterval || 1, 1, CONFIG.maxRepeatInterval);
+    if (repeatInterval > 1 && CONFIG.intervalRepeats.includes(reminder.repeat)) {
+      $('#editRepeat').value = 'custom';
+      $('#editRepeatEvery').value = repeatInterval;
+      $('#editRepeatUnit').value = reminder.repeat;
+    } else {
+      $('#editRepeat').value = CONFIG.repeats.includes(reminder.repeat) ? reminder.repeat : 'once';
+      $('#editRepeatEvery').value = '2';
+      $('#editRepeatUnit').value = reminder.repeat === 'yearly' ? 'yearly' : reminder.repeat === 'monthly' ? 'monthly' : reminder.repeat === 'daily' ? 'daily' : 'weekly';
+    }
+    setRepeatCustomVisibility('edit');
     $('#editPaused').checked = reminder.paused;
     $('#editError').textContent = '';
     updateEditSchedulePreview();
@@ -2040,7 +2120,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
   function updateEditSchedulePreview() {
     const date = parseLocal($('#editDate').value, $('#editTime').value);
-    $('#editSchedulePreview').textContent = schedulePreviewText(date, $('#editRepeat').value);
+    const repeatConfig = repeatConfigFromControls('edit');
+    $('#editSchedulePreview').textContent = repeatConfig.error || schedulePreviewText(date, repeatConfig.repeat, repeatConfig.repeatInterval);
   }
 
   function saveEdit() {
@@ -2064,6 +2145,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       $('#editMinutes').focus();
       return;
     }
+    const repeatConfig = repeatConfigFromControls('edit');
+    if (repeatConfig.error) {
+      $('#editError').textContent = repeatConfig.error;
+      $('#editRepeatEvery').focus();
+      return;
+    }
     const previous = deepClone(state);
     Object.assign(reminder, {
       title: cleanText($('#editTitle').value, 80).trim(),
@@ -2073,7 +2160,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       color: validColour($('#editColor').value),
       nextAt: date.toISOString(),
       anchorDay: date.getDate(),
-      repeat: CONFIG.repeats.includes($('#editRepeat').value) ? $('#editRepeat').value : 'once',
+      anchorMonth: date.getMonth(),
+      repeat: repeatConfig.repeat,
+      repeatInterval: repeatConfig.repeatInterval,
       paused: $('#editPaused').checked,
       snoozedUntil: null,
       manualDueAt: null,
@@ -2149,7 +2238,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const actionLabel = reminder.paused ? 'Resume first' : isDue(reminder) ? 'Show' : 'Start';
     return `<article class="card">
       <div class="swatch" style="background:${validColour(reminder.color)}"></div>
-      <div class="card-main"><h3>${esc(reminderDisplayTitle(reminder))}</h3>${reminder.title ? `<p>${esc(reminder.text)}</p>` : ''}<div class="card-meta"><span>${esc(reminder.category || 'Uncategorised')}</span><span>${esc(repeatLabel(reminder.repeat))}</span><span>${esc(status)}</span></div></div>
+      <div class="card-main"><h3>${esc(reminderDisplayTitle(reminder))}</h3>${reminder.title ? `<p>${esc(reminder.text)}</p>` : ''}<div class="card-meta"><span>${esc(reminder.category || 'Uncategorised')}</span><span>${esc(repeatLabel(reminder.repeat, reminder.repeatInterval))}</span><span>${esc(status)}</span></div></div>
       <div class="card-actions">
         <button type="button" data-card-action="start" data-id="${esc(reminder.id)}" ${reminder.paused ? 'disabled' : ''}>${actionLabel}</button>
         <button type="button" data-card-action="edit" data-id="${esc(reminder.id)}">Edit</button>
@@ -2281,7 +2370,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="panel"><h3>Recovery points</h3><p class="small">The app keeps up to ${CONFIG.maxSnapshots} recent local recovery points before important changes. They stay on this computer only.</p><div class="snapshot-list">${snapshots.length ? snapshots.map(snapshot => `<div class="snapshot-item"><div><strong>${esc(snapshot.reason)}</strong><span>${esc(fmt(snapshot.createdAt))}</span></div><button type="button" class="secondary-btn" data-restore-snapshot="${esc(snapshot.id)}">Restore</button></div>`).join('') : '<div class="muted small">No recovery points yet.</div>'}</div></div>
       <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> delay the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
       <div class="panel"><h3>Data safety</h3><p class="small">A yearly CSV and printable report are available under Time and history.</p><button type="button" class="danger-btn" id="resetBtn">Reset all data</button></div>
-      <div class="panel"><h3>About V3</h3><p class="small">A self-contained, offline-first Post-it reminder prototype designed to become the interface of the later Windows app.</p></div>`;
+      <div class="panel"><h3>About V3.2</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving and flexible repeat intervals, designed to become the interface of the later Windows app.</p></div>`;
     $('#defaultColor').value = validColour(state.settings.defaultColor);
     $('#defaultColor').addEventListener('change', event => {
       state.settings.defaultColor = validColour(event.target.value);
@@ -2464,7 +2553,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     rows.push([], ['COMPLETION DETAIL'], ['Completed','Title','Reminder','Category','Actual minutes','Planned minutes','Variance','Repeat','Scheduled for','Completed early','Snoozes','Completion note','Timer started']);
     summary.rows.forEach(item => rows.push([
       fmt(item.completedAt), item.title, item.text, item.category || 'Uncategorised', item.actualMinutes, item.plannedMinutes,
-      item.actualMinutes - item.plannedMinutes, repeatLabel(item.repeat), fmt(item.scheduledFor), item.completedEarly ? 'Yes' : 'No', item.snoozeCount,
+      item.actualMinutes - item.plannedMinutes, repeatLabel(item.repeat, item.repeatInterval), fmt(item.scheduledFor), item.completedEarly ? 'Yes' : 'No', item.snoozeCount,
       item.completionNote, item.timerStartedAt ? fmt(item.timerStartedAt) : ''
     ]));
     const csv = '\ufeff' + rows.map(row => row.map(safeCsvText).join(',')).join('\r\n');
@@ -2494,7 +2583,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       </div>
       <section class="${standalone ? '' : 'print-section'}"><h2>Category summary</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Category</th><th>Completed</th><th>Actual</th><th>Planned</th><th>Variance</th></tr></thead><tbody>${categories.length ? categories.map(([category,value]) => `<tr><td>${esc(category)}</td><td>${value.count}</td><td>${esc(humanMinutes(value.actual))}</td><td>${esc(humanMinutes(value.planned))}</td><td>${esc(varianceLabel(value.actual, value.planned))}</td></tr>`).join('') : '<tr><td colspan="5">No completed Post-its.</td></tr>'}</tbody></table></section>
       <section class="${standalone ? '' : 'print-section'}"><h2>Monthly totals</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Month</th><th>Time</th></tr></thead><tbody>${months.length ? months.map(([month,minutes]) => `<tr><td>${esc(month)}</td><td>${esc(humanMinutes(minutes))}</td></tr>`).join('') : '<tr><td colspan="2">No recorded time.</td></tr>'}</tbody></table></section>
-      <section class="${standalone ? 'page' : 'print-section print-page-break'}"><h2>Completion detail</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Actual</th><th>Planned</th></tr></thead><tbody>${summary.rows.length ? summary.rows.map(item => `<tr><td>${esc(fmtDateOnly(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${item.actualMinutes} min</td><td>${item.plannedMinutes} min</td></tr>`).join('') : '<tr><td colspan="5">No completed Post-its.</td></tr>'}</tbody></table></section>`;
+      <section class="${standalone ? 'page' : 'print-section print-page-break'}"><h2>Completion detail</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Repeat</th><th>Actual</th><th>Planned</th></tr></thead><tbody>${summary.rows.length ? summary.rows.map(item => `<tr><td>${esc(fmtDateOnly(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${esc(repeatLabel(item.repeat, item.repeatInterval))}</td><td>${item.actualMinutes} min</td><td>${item.plannedMinutes} min</td></tr>`).join('') : '<tr><td colspan="6">No completed Post-its.</td></tr>'}</tbody></table></section>`;
   }
 
   function printYearReport() {
@@ -2789,7 +2878,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     $$('[data-close]').forEach(button => button.addEventListener('click', () => closeDialog($(`#${button.dataset.close}`))));
     $$('[data-snooze]').forEach(button => button.addEventListener('click', () => applySnooze(button.dataset.snooze)));
     $$('#timeGrid [data-minutes]').forEach(button => button.addEventListener('click', () => selectDoneMinutes(button.dataset.minutes)));
-    ['editDate','editTime','editRepeat'].forEach(id => $(`#${id}`).addEventListener('input', updateEditSchedulePreview));
+    $('#editRepeat').addEventListener('change', () => { setRepeatCustomVisibility('edit'); updateEditSchedulePreview(); });
+    ['editDate','editTime','editRepeatEvery','editRepeatUnit'].forEach(id => $(`#${id}`).addEventListener('input', updateEditSchedulePreview));
     $('#dragHandle').addEventListener('pointerdown', beginDrag);
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);

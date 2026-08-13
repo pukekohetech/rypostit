@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'postit-reminder-v3-pwa-2-durable';
+const CACHE_NAME = 'postit-reminder-v3-2-flexible-repeat';
 const APP_SHELL = [
   './',
   './index.html',
