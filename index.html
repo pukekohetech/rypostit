@@ -1,0 +1,2680 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fff18a">
+<meta name="color-scheme" content="light">
+<meta name="description" content="A simple floating Post-it reminder and time-tracking app.">
+<meta name="application-name" content="Post-it Reminder">
+<title>Post-it Reminder</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<style>
+:root {
+  --desk: #e7e4dc;
+  --desk-dark: #d7d1c4;
+  --ink: #26251f;
+  --muted: #6e695d;
+  --paper: #fffdf8;
+  --yellow: #fff18a;
+  --accent: #235247;
+  --accent-hover: #173f36;
+  --danger: #9b3d36;
+  --danger-soft: #f9e8e5;
+  --line: rgba(55, 50, 39, 0.18);
+  --shadow: 0 28px 80px rgba(46, 41, 29, 0.24), 0 8px 20px rgba(46, 41, 29, 0.10);
+  --soft-shadow: 0 14px 36px rgba(46, 41, 29, 0.14);
+  --radius: 14px;
+  --focus: 0 0 0 4px rgba(35, 82, 71, 0.24);
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; min-height: 100%; margin: 0; }
+body {
+  min-height: 100dvh;
+  overflow: hidden;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(255,255,255,0.88), rgba(255,255,255,0.20) 44%, transparent 72%),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(69,60,42,0.026) 80px),
+    var(--desk);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.hidden { display: none !important; }
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+.muted { color: var(--muted); }
+.small { font-size: 0.79rem; }
+.tiny { font-size: 0.72rem; }
+.strong { font-weight: 750; }
+
+.storage-banner {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 90;
+  width: min(92vw, 760px);
+  transform: translateX(-50%);
+  padding: 10px 42px 10px 14px;
+  border: 1px solid #cfaba5;
+  border-radius: 11px;
+  background: #fff4f1;
+  color: #702e28;
+  box-shadow: var(--soft-shadow);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.storage-banner button {
+  position: absolute;
+  right: 7px;
+  top: 6px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 1.2rem;
+}
+
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 360px;
+  overflow: hidden;
+}
+.float-wrap {
+  position: fixed;
+  width: min(480px, calc(100vw - 32px));
+  height: min(500px, calc(100dvh - 32px));
+  min-width: min(320px, calc(100vw - 32px));
+  min-height: min(390px, calc(100dvh - 32px));
+  isolation: isolate;
+  touch-action: none;
+  transition: filter 0.18s ease;
+}
+.float-wrap.capture-mode { height: min(560px, calc(100dvh - 32px)); }
+.float-wrap.dragging { filter: drop-shadow(0 12px 14px rgba(43,38,27,0.16)); }
+.back-note {
+  position: absolute;
+  inset: 10px -10px -9px 12px;
+  z-index: 0;
+  background: #f2d98e;
+  transform: rotate(2deg);
+  box-shadow: var(--soft-shadow);
+}
+.back-note.two {
+  inset: 5px -3px -4px 7px;
+  background: #f8e5a4;
+  transform: rotate(-0.9deg);
+}
+.postit {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  scrollbar-width: thin;
+  padding: 28px 30px 24px;
+  background: var(--yellow);
+  box-shadow: var(--shadow);
+  transform: rotate(-0.18deg);
+  transition: background-color 0.2s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+.postit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.42), transparent 34%, rgba(66,54,24,0.046)),
+    repeating-linear-gradient(0deg, transparent 0 32px, rgba(72,61,34,0.018) 33px);
+}
+.postit > * { position: relative; z-index: 1; }
+.postit.animate-out { animation: note-out 0.2s ease forwards; }
+@keyframes note-out {
+  to { transform: translate(34px,-18px) rotate(4.5deg); opacity: 0; }
+}
+
+.drag-handle {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 7px;
+  width: 52px;
+  height: 20px;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 24px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(58,51,34,0.23);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.16);
+}
+
+.edge-tab {
+  position: absolute;
+  left: -26px;
+  top: 58px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 78px;
+  border: 0;
+  border-radius: 11px 0 0 11px;
+  background: #484740;
+  color: #fff;
+  box-shadow: -5px 7px 16px rgba(0,0,0,0.15);
+  transition: left 0.18s ease, right 0.18s ease, background 0.15s ease;
+}
+.edge-tab:hover { background: #2f302c; }
+.edge-tab span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.tool-rail {
+  position: absolute;
+  left: -87px;
+  top: 43px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(68,61,46,0.14);
+  border-radius: 14px;
+  background: rgba(255,253,247,0.98);
+  box-shadow: var(--soft-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(60px);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.float-wrap.rail-open .tool-rail {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.float-wrap.tools-right .edge-tab {
+  left: auto;
+  right: -26px;
+  border-radius: 0 11px 11px 0;
+}
+.float-wrap.tools-right .tool-rail {
+  left: auto;
+  right: -87px;
+  transform: translateX(-60px);
+}
+.float-wrap.tools-right.rail-open .tool-rail { transform: translateX(0); }
+.rail-btn, .round-btn, .icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(61,55,42,0.12);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.78);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.68) inset;
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+.rail-btn:hover, .round-btn:hover, .icon-btn:hover { transform: translateY(-1px); background: #fff; }
+.rail-btn svg, .round-btn svg, .icon-btn svg { width: 21px; height: 21px; stroke: currentColor; }
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  z-index: 100;
+  width: max-content;
+  max-width: 210px;
+  transform: translateY(-50%) translateX(-4px);
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #24241f;
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+[data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+.tools-right [data-tooltip]::after { left: auto; right: calc(100% + 10px); }
+.mic-live {
+  color: var(--danger);
+  background: #fff3f1 !important;
+  animation: mic-pulse 1.25s ease-in-out infinite;
+}
+@keyframes mic-pulse { 50% { box-shadow: 0 0 0 7px rgba(155,61,54,0.10); } }
+
+.note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 78%;
+  padding: 6px 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.52);
+  font-size: 0.72rem;
+  font-weight: 780;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip.overdue { color: #7f302a; background: rgba(155,61,54,0.13); }
+.chip.early { color: #274e62; background: rgba(65,123,153,0.14); }
+.more-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.37);
+  font-size: 1.24rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.note-kicker {
+  margin-top: 18px;
+  color: rgba(54,49,36,0.68);
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.note-title {
+  margin: 13px 0 7px;
+  font-size: clamp(1.7rem, 5.2vw, 2.05rem);
+  line-height: 1.07;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.note-copy {
+  flex: 1;
+  min-height: 0;
+  padding: 5px 2px 9px;
+  overflow: auto;
+  scrollbar-width: thin;
+  font-family: "Segoe Print", "Comic Sans MS", cursive;
+  font-size: clamp(1.28rem, 4.4vw, 1.62rem);
+  line-height: 1.36;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.note-copy.primary-copy {
+  margin-top: 13px;
+  font-size: clamp(1.55rem, 5vw, 1.95rem);
+}
+.note-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 4px 0 12px;
+  color: #514c3e;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+.meta-pill {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.30);
+}
+.micro-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 35px;
+  margin-bottom: 8px;
+}
+.timer-btn {
+  min-height: 34px;
+  padding: 5px 2px;
+  border: 0;
+  background: transparent;
+  color: #4d493d;
+  font-size: 0.78rem;
+  font-weight: 740;
+  text-align: left;
+}
+.timer-btn.active { color: #7c332e; }
+.behind {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.38);
+  color: #5c5647;
+  font-size: 0.71rem;
+  font-weight: 730;
+}
+.note-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.action {
+  min-height: 50px;
+  border: 1px solid rgba(48,43,32,0.21);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.62);
+  font-weight: 820;
+  letter-spacing: 0.025em;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.action:hover { transform: translateY(-1px); background: rgba(255,255,255,0.84); }
+.action.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.action.primary:hover { background: var(--accent-hover); }
+.action.ghost { background: rgba(255,255,255,0.40); }
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  padding: 20px;
+  text-align: center;
+}
+.empty-mark {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.38);
+  color: var(--accent);
+}
+.empty-mark svg { width: 34px; height: 34px; }
+.empty-state h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 7vw, 2.2rem); }
+.empty-state p { max-width: 320px; margin: 0 auto; color: #5d5748; line-height: 1.5; }
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 22px; }
+.empty-actions button {
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid rgba(55,50,38,0.19);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.58);
+  font-weight: 760;
+}
+
+.capture-title { margin: 13px 0 9px; font-size: 1.45rem; }
+.capture-area {
+  width: 100%;
+  flex: 1;
+  min-height: 105px;
+  padding: 11px 12px;
+  border: 1px solid rgba(60,54,42,0.12);
+  border-radius: 10px;
+  resize: none;
+  background: rgba(255,255,255,0.22);
+  font-family: "Segoe Print", "Comic Sans MS", cursive;
+  font-size: clamp(1.14rem, 4vw, 1.45rem);
+  line-height: 1.35;
+}
+.capture-area::placeholder { color: rgba(51,46,34,0.46); }
+.capture-voice { display: flex; align-items: center; gap: 9px; margin: 8px 0 10px; }
+.voice-text { min-height: 18px; color: #5a5548; font-size: 0.76rem; line-height: 1.3; }
+.schedule-label { margin: 0 0 6px; font-size: 0.76rem; font-weight: 780; }
+.preset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.preset-btn {
+  min-height: 38px;
+  padding: 7px 5px;
+  border: 1px solid rgba(60,54,42,0.17);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.50);
+  font-size: 0.72rem;
+  font-weight: 730;
+}
+.preset-btn.selected { border-color: var(--accent); background: rgba(35,82,71,0.12); color: #173f36; }
+.schedule-row { display: grid; grid-template-columns: 1.1fr 0.72fr 0.9fr; gap: 7px; margin-top: 7px; }
+.schedule-row input, .schedule-row select,
+.mini-field input, .mini-field select,
+.field input, .field select, .field textarea,
+.drawer-toolbar input, .drawer-toolbar select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(60,54,42,0.19);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.72);
+  padding: 8px 9px;
+}
+.schedule-preview {
+  min-height: 33px;
+  margin-top: 7px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.34);
+  color: #514c3f;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.capture-details { margin: 7px 0 8px; }
+.capture-details summary { cursor: pointer; color: #555043; font-size: 0.76rem; font-weight: 760; }
+.details-grid { display: grid; grid-template-columns: 1fr 0.75fr 0.8fr; gap: 7px; margin-top: 8px; }
+.capture-buttons { display: grid; grid-template-columns: 0.72fr 1.28fr; gap: 9px; margin-top: auto; }
+.capture-buttons button { min-height: 45px; border-radius: 10px; font-weight: 790; }
+.capture-buttons .cancel { border: 1px solid rgba(58,53,41,0.18); background: rgba(255,255,255,0.50); }
+.capture-buttons .save { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+
+.drawer-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(38,35,29,0.23);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.drawer-shade.open { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  width: min(94vw, 650px);
+  height: 100dvh;
+  background: var(--paper);
+  box-shadow: -24px 0 60px rgba(40,35,26,0.20);
+  transform: translateX(102%);
+  transition: transform 0.24s ease;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(18px, env(safe-area-inset-top)) 20px 16px;
+  border-bottom: 1px solid #e2ddd2;
+}
+.drawer-head h2 { margin: 0; font-size: 1.35rem; }
+.drawer-close {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 1.55rem;
+}
+.drawer-body { flex: 1; overflow: auto; padding: 18px 20px 32px; }
+.drawer-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.drawer-toolbar input { flex: 1 1 220px; }
+.primary-btn, .secondary-btn, .danger-btn, .quiet-btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-weight: 730;
+}
+.primary-btn { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.secondary-btn { border: 1px solid #d5cec1; background: #fff; }
+.danger-btn { border: 1px solid var(--danger); background: var(--danger); color: #fff; }
+.quiet-btn { border: 1px solid transparent; background: transparent; color: #4f4a40; }
+.panel {
+  margin-bottom: 13px;
+  padding: 15px;
+  border: 1px solid #e0d9cc;
+  border-radius: 14px;
+  background: #fff;
+}
+.panel h3 { margin: 0 0 7px; font-size: 1rem; }
+.panel p { margin: 6px 0; line-height: 1.45; }
+.inline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.card {
+  display: grid;
+  grid-template-columns: 8px minmax(0,1fr) auto;
+  gap: 12px;
+  margin-bottom: 9px;
+  overflow: hidden;
+  border: 1px solid #e2dbce;
+  border-radius: 13px;
+  background: #fff;
+}
+.swatch { min-height: 100%; }
+.card-main { min-width: 0; padding: 12px 0; }
+.card-main h3 { margin: 0 0 4px; font-size: 0.96rem; overflow-wrap: anywhere; }
+.card-main p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.82rem; line-height: 1.38; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; color: #777166; font-size: 0.7rem; }
+.card-actions { display: flex; align-items: center; gap: 5px; padding: 10px 10px 10px 0; }
+.card-actions button { min-height: 34px; padding: 6px 8px; border: 1px solid #ddd6ca; border-radius: 8px; background: #fff; font-size: 0.71rem; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.stat { padding: 12px; border: 1px solid #e2dbcf; border-radius: 12px; background: #fff; }
+.stat strong { display: block; font-size: 1.5rem; }
+.stat span { color: #777166; font-size: 0.71rem; }
+.breakdown-row { display: grid; grid-template-columns: minmax(80px,1fr) 2fr auto; align-items: center; gap: 9px; margin: 8px 0; font-size: 0.78rem; }
+.breakdown-track { height: 8px; overflow: hidden; border-radius: 999px; background: #eee9df; }
+.breakdown-fill { height: 100%; border-radius: inherit; background: var(--accent); }
+.table-wrap { max-height: 50vh; overflow: auto; border: 1px solid #e2dbcf; border-radius: 11px; }
+.history-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.75rem; }
+.history-table th, .history-table td { padding: 8px; border-bottom: 1px solid #e7e1d6; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.history-table th { position: sticky; top: 0; z-index: 1; background: #f5f2eb; }
+.setting-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #ece6dc; }
+.setting-row:last-child { border-bottom: 0; }
+.setting-row strong { display: block; font-size: 0.82rem; }
+.setting-row span { color: #777166; font-size: 0.72rem; line-height: 1.35; }
+.snapshot-list { display: grid; gap: 7px; margin-top: 9px; }
+.snapshot-item { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 9px; border: 1px solid #e6dfd3; border-radius: 10px; background: #fbfaf7; }
+.snapshot-item strong { display: block; font-size: 0.77rem; }
+.snapshot-item span { color: #777166; font-size: 0.68rem; }
+
+.dialog {
+  width: min(92vw, 570px);
+  max-height: 90dvh;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 30px 90px rgba(0,0,0,0.30);
+}
+.dialog::backdrop { background: rgba(40,37,31,0.38); backdrop-filter: blur(2px); }
+.dialog[open]:not(:modal) { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%,-50%); z-index: 70; }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #e4ded3; }
+.dialog-head h2 { margin: 0; font-size: 1.16rem; }
+.dialog-close { display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 9px; background: transparent; font-size: 1.45rem; }
+.dialog-body { display: grid; gap: 12px; max-height: 66dvh; overflow: auto; padding: 17px; }
+.dialog-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 13px 17px; border-top: 1px solid #e4ded3; }
+.field { display: grid; gap: 5px; }
+.field label { font-size: 0.76rem; font-weight: 750; }
+.field textarea { min-height: 100px; resize: vertical; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row3 { display: grid; grid-template-columns: 1fr 0.72fr 0.8fr; gap: 9px; }
+.snooze-grid, .time-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.snooze-grid button, .time-grid button {
+  min-height: 44px;
+  padding: 9px 7px;
+  border: 1px solid #dcd5c8;
+  border-radius: 9px;
+  background: #fff;
+  font-weight: 730;
+}
+.time-grid button.selected { border-color: var(--accent); background: rgba(35,82,71,0.10); color: #173f36; }
+.hint { padding: 9px 10px; border-radius: 9px; background: #f2eee5; color: #645e51; font-size: 0.75rem; line-height: 1.42; }
+.error-text { min-height: 18px; color: var(--danger); font-size: 0.75rem; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: 100;
+  max-width: min(90vw, 560px);
+  transform: translate(-50%, 14px);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #24241f;
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+  opacity: 0;
+  pointer-events: none;
+  font-size: 0.8rem;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%,0); }
+.undo-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 105;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(92vw, 560px);
+  transform: translate(-50%, 20px);
+  padding: 11px 12px 11px 15px;
+  border-radius: 12px;
+  background: #24241f;
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.26);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.undo-bar.show { opacity: 1; pointer-events: auto; transform: translate(-50%,0); }
+.undo-bar span { flex: 1; min-width: 0; font-size: 0.8rem; line-height: 1.3; }
+.undo-bar button { min-height: 38px; padding: 7px 11px; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; background: transparent; color: #fff; font-weight: 800; }
+.undo-close { width: 36px; padding: 0 !important; font-size: 1.15rem; }
+
+#printArea { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 15mm; }
+  body { overflow: visible !important; background: #fff !important; color: #111 !important; }
+  body > :not(#printArea) { display: none !important; }
+  #printArea { display: block !important; font-family: "Segoe UI", Arial, sans-serif; }
+  .print-title { margin: 0 0 4mm; font-size: 22pt; }
+  .print-sub { margin: 0 0 6mm; color: #555; font-size: 9pt; }
+  .print-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 3mm; margin-bottom: 6mm; }
+  .print-stat { padding: 3mm; border: 1px solid #aaa; border-radius: 2mm; break-inside: avoid; }
+  .print-stat strong { display: block; font-size: 16pt; }
+  .print-stat span { font-size: 8pt; color: #555; }
+  .print-section { break-inside: avoid; margin: 5mm 0; }
+  .print-section h2 { margin: 0 0 2mm; font-size: 13pt; }
+  .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  .print-table th, .print-table td { padding: 2mm; border: 1px solid #bbb; text-align: left; vertical-align: top; }
+  .print-table th { background: #efefef; }
+  .print-page-break { break-before: page; }
+}
+
+@media (max-width: 680px) {
+  .float-wrap {
+    width: calc(100vw - 20px);
+    height: calc(100dvh - 62px);
+    min-width: 0;
+    min-height: min(350px, calc(100dvh - 62px));
+  }
+  .float-wrap.capture-mode { height: calc(100dvh - 62px); }
+  .postit { padding: 25px 20px 19px; }
+  .edge-tab, .float-wrap.tools-right .edge-tab {
+    left: auto;
+    right: 8px;
+    top: -29px;
+    width: 78px;
+    height: 31px;
+    border-radius: 10px 10px 0 0;
+  }
+  .edge-tab span { writing-mode: horizontal-tb; transform: none; }
+  .tool-rail, .float-wrap.tools-right .tool-rail {
+    left: auto;
+    right: 0;
+    top: -61px;
+    flex-direction: row;
+    transform: translateY(34px);
+  }
+  .float-wrap.rail-open .tool-rail,
+  .float-wrap.tools-right.rail-open .tool-rail { transform: translateY(0); }
+  [data-tooltip]::after { display: none; }
+  .preset-grid { grid-template-columns: 1fr 1fr; }
+  .schedule-row { grid-template-columns: 1fr 0.8fr; }
+  .schedule-row select { grid-column: 1 / -1; }
+  .details-grid, .row, .row3 { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .card { grid-template-columns: 7px minmax(0,1fr); }
+  .card-actions { grid-column: 2; justify-content: flex-start; padding: 0 10px 10px 0; flex-wrap: wrap; }
+  .snooze-grid, .time-grid { grid-template-columns: 1fr 1fr; }
+  .drawer-body { padding-inline: 14px; }
+}
+
+@media (max-height: 560px) and (min-width: 681px) {
+  .float-wrap { height: calc(100dvh - 20px); min-height: 0; }
+  .postit { padding-block: 22px 17px; }
+  .note-title { margin-top: 9px; }
+  .note-copy { font-size: 1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+</style>
+</head>
+<body>
+<noscript><div class="storage-banner">Post-it Reminder needs JavaScript enabled. No data has been changed.</div></noscript>
+<div class="storage-banner hidden" id="storageBanner" role="alert">
+  <span id="storageBannerText"></span>
+  <button type="button" id="storageBannerClose" aria-label="Dismiss message">&times;</button>
+</div>
+
+<main class="stage" id="stage" aria-label="Post-it Reminder">
+  <section class="float-wrap" id="floatWrap" aria-label="Floating Post-it">
+    <div class="back-note" aria-hidden="true"></div>
+    <div class="back-note two" aria-hidden="true"></div>
+    <button type="button" class="edge-tab" id="edgeTab" aria-label="Open tools" aria-expanded="false" aria-controls="toolRail"><span>TOOLS</span></button>
+    <nav class="tool-rail" id="toolRail" aria-label="Post-it tools" aria-hidden="true">
+      <button type="button" class="rail-btn" id="newBtn" aria-label="New Post-it" data-tooltip="New Post-it">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button type="button" class="rail-btn" id="voiceBtn" aria-label="Open voice capture" data-tooltip="Voice capture">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>
+      </button>
+      <button type="button" class="rail-btn" id="listBtn" aria-label="All Post-its" data-tooltip="All Post-its">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button type="button" class="rail-btn" id="historyBtn" aria-label="Time and history" data-tooltip="Time and history">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </button>
+      <button type="button" class="rail-btn" id="settingsBtn" aria-label="Settings" data-tooltip="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+      </button>
+    </nav>
+    <article class="postit" id="postit"></article>
+    <button type="button" class="drag-handle" id="dragHandle" aria-label="Move Post-it. Drag, or use arrow keys." data-tooltip="Drag to move"></button>
+  </section>
+</main>
+
+<div class="drawer-shade" id="drawerShade"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="drawerTitle" inert>
+  <div class="drawer-head">
+    <h2 id="drawerTitle">Post-its</h2>
+    <button type="button" class="drawer-close" id="drawerClose" aria-label="Close panel">&times;</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<dialog class="dialog" id="snoozeDialog" aria-labelledby="snoozeHeading">
+  <div class="dialog-head"><h2 id="snoozeHeading">Delay this Post-it</h2><button type="button" class="dialog-close" data-close="snoozeDialog" aria-label="Close">&times;</button></div>
+  <div class="dialog-body">
+    <div class="snooze-grid">
+      <button type="button" data-snooze="10">10 min</button>
+      <button type="button" data-snooze="30">30 min</button>
+      <button type="button" data-snooze="60">1 hour</button>
+      <button type="button" data-snooze="180">3 hours</button>
+      <button type="button" data-snooze="tomorrow">Tomorrow</button>
+      <button type="button" data-snooze="nextworkday">Next workday</button>
+    </div>
+    <div class="field"><label for="customSnooze">Or choose a date and time</label><input type="datetime-local" id="customSnooze"></div>
+    <div class="error-text" id="snoozeError" role="alert"></div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="secondary-btn" data-close="snoozeDialog">Cancel</button><button type="button" class="primary-btn" id="customSnoozeBtn">Delay</button></div>
+</dialog>
+
+<dialog class="dialog" id="doneDialog" aria-labelledby="doneHeading">
+  <div class="dialog-head"><h2 id="doneHeading">Complete Post-it</h2><button type="button" class="dialog-close" data-close="doneDialog" aria-label="Close">&times;</button></div>
+  <div class="dialog-body">
+    <div class="strong" id="doneName"></div>
+    <div class="hint" id="doneTimeHint">Choose the closest time. You can enter an exact value below.</div>
+    <div class="time-grid" id="timeGrid">
+      <button type="button" data-minutes="0">No time</button>
+      <button type="button" data-minutes="5">5 min</button>
+      <button type="button" data-minutes="15">15 min</button>
+      <button type="button" data-minutes="30">30 min</button>
+      <button type="button" data-minutes="60">1 hour</button>
+      <button type="button" data-minutes="other">Other</button>
+    </div>
+    <div class="row" id="doneDetailsRow">
+      <div class="field"><label for="actualMinutes">Actual minutes</label><input id="actualMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric"></div>
+      <div class="field"><label for="completionNote">Optional note</label><input id="completionNote" maxlength="160" placeholder="e.g. included setup"></div>
+    </div>
+    <label class="inline small hidden" id="stopRepeatRow"><input type="checkbox" id="stopRepeat"> Stop this repeating Post-it after completing it</label>
+    <div class="error-text" id="doneError" role="alert"></div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="secondary-btn" data-close="doneDialog">Cancel</button><button type="button" class="primary-btn" id="completeBtn">Complete</button></div>
+</dialog>
+
+<dialog class="dialog" id="editDialog" aria-labelledby="editHeading">
+  <div class="dialog-head"><h2 id="editHeading">Edit Post-it</h2><button type="button" class="dialog-close" data-close="editDialog" aria-label="Close">&times;</button></div>
+  <div class="dialog-body">
+    <input type="hidden" id="editId">
+    <div class="field"><label for="editTitle">Optional title</label><input id="editTitle" maxlength="80"></div>
+    <div class="field"><label for="editText">Post-it text</label><textarea id="editText" maxlength="800" required></textarea></div>
+    <div class="row3">
+      <div class="field"><label for="editCategory">Category</label><input id="editCategory" list="categorySuggestions" maxlength="40"></div>
+      <div class="field"><label for="editMinutes">Planned minutes</label><input id="editMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric"></div>
+      <div class="field"><label for="editColor">Colour</label><select id="editColor"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div>
+    </div>
+    <div class="row"><div class="field"><label for="editDate">Date</label><input id="editDate" type="date"></div><div class="field"><label for="editTime">Time</label><input id="editTime" type="time"></div></div>
+    <div class="field"><label for="editRepeat">Repeat</label><select id="editRepeat"><option value="once">One time</option><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div>
+    <div class="schedule-preview" id="editSchedulePreview" aria-live="polite"></div>
+    <label class="inline small"><input type="checkbox" id="editPaused"> Pause this Post-it</label>
+    <div class="error-text" id="editError" role="alert"></div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="danger-btn" id="deleteEditBtn">Delete</button><span style="flex:1"></span><button type="button" class="secondary-btn" data-close="editDialog">Cancel</button><button type="button" class="primary-btn" id="saveEditBtn">Save</button></div>
+</dialog>
+
+<datalist id="categorySuggestions"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="undo-bar" id="undoBar" role="status" aria-live="polite">
+  <span id="undoText"></span>
+  <button type="button" id="undoBtn">Undo</button>
+  <button type="button" class="undo-close" id="undoClose" aria-label="Dismiss undo">&times;</button>
+</div>
+<div class="sr-only" id="liveStatus" role="status" aria-live="polite"></div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<section id="printArea" aria-hidden="true"></section>
+
+<script>
+
+(() => {
+  'use strict';
+
+  const CONFIG = Object.freeze({
+    version: 3,
+    storageKey: 'postitReminderV1',
+    snapshotKey: 'postitReminderV3Snapshots',
+    maxSnapshots: 6,
+    undoMs: 8000,
+    maxImportBytes: 5 * 1024 * 1024,
+    maxReminders: 5000,
+    maxHistory: 20000,
+    colours: ['#fff18a', '#ffd6a5', '#caffbf', '#bde0fe', '#ffc8dd', '#e7c6ff'],
+    repeats: ['once', 'daily', 'weekdays', 'weekly', 'monthly']
+  });
+
+  const ICONS = Object.freeze({
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>'
+  });
+
+  const $ = selector => document.querySelector(selector);
+  const $$ = selector => Array.from(document.querySelectorAll(selector));
+  const now = () => new Date();
+  const deepClone = value => JSON.parse(JSON.stringify(value));
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const pad = number => String(number).padStart(2, '0');
+  const localDate = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const localTime = date => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const isoLocal = date => `${localDate(date)}T${localTime(date)}`;
+  const parseLocal = (date, time) => new Date(`${date}T${time}:00`);
+  const isValidDate = value => value && !Number.isNaN(new Date(value).getTime());
+  const safeDate = (value, fallback = null) => isValidDate(value) ? new Date(value) : fallback;
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const validColour = colour => CONFIG.colours.includes(String(colour).toLowerCase()) ? String(colour).toLowerCase() : '#fff18a';
+  const cleanText = (value, max = 800) => String(value ?? '').replace(/\u0000/g, '').slice(0, max);
+  const safeNumber = (value, min = 0, max = 1440) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? clamp(Math.round(number), min, max) : min;
+  };
+  const esc = (value = '') => String(value).replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+  const fmt = value => new Intl.DateTimeFormat('en-NZ', {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(value));
+  const fmtShort = value => new Intl.DateTimeFormat('en-NZ', {weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'}).format(new Date(value));
+  const fmtDateOnly = value => new Intl.DateTimeFormat('en-NZ', {dateStyle: 'medium'}).format(new Date(value));
+  const repeatLabel = value => ({once:'One-off', daily:'Daily', weekdays:'Weekdays', weekly:'Weekly', monthly:'Monthly'})[value] || 'One-off';
+  const humanMinutes = minutes => {
+    const total = Math.max(0, Math.round(Number(minutes) || 0));
+    if (total < 60) return `${total} min`;
+    const hours = Math.floor(total / 60);
+    const remainder = total % 60;
+    return `${hours}h${remainder ? ` ${remainder}m` : ''}`;
+  };
+  const humanDurationMs = milliseconds => {
+    const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours) return `${hours}:${pad(minutes)}:${pad(secs)}`;
+    return `${minutes}:${pad(secs)}`;
+  };
+
+  const storageInfo = {
+    available: true,
+    message: '',
+    repairs: 0,
+    loadFailed: false
+  };
+
+  const ui = {
+    mode: 'current',
+    currentReminderId: null,
+    drawerType: null,
+    recognition: null,
+    voiceBase: '',
+    timerHandle: null,
+    actionLocked: false,
+    undoState: null,
+    undoTimer: null,
+    drawerOpener: null,
+    dialogOpener: null,
+    pinnedReminderId: null,
+    editInitial: '',
+    captureDirty: false,
+    selectedPreset: 'later',
+    dragging: null,
+    bannerDismissed: false,
+    railPinned: false,
+    suppressRailFocusOpen: false
+  };
+
+  function defaultState() {
+    return {
+      version: CONFIG.version,
+      reminders: [],
+      history: [],
+      settings: {
+        defaultColor: '#fff18a',
+        historyYear: now().getFullYear(),
+        notePosition: null
+      },
+      timer: null,
+      updatedAt: now().toISOString()
+    };
+  }
+
+  function testStorage() {
+    try {
+      const key = '__postit_storage_test__';
+      localStorage.setItem(key, '1');
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.warn('Post-it Reminder storage unavailable:', error?.name || 'unknown error');
+      storageInfo.available = false;
+      storageInfo.message = 'Browser storage is unavailable. You can still use the app, but changes will be lost when this page closes. Try opening the file in Edge or Chrome, or check the browser privacy settings.';
+      return false;
+    }
+  }
+
+  function migrateTimer(rawTimer, reminderIds, repairs) {
+    if (!rawTimer || typeof rawTimer !== 'object' || !reminderIds.has(String(rawTimer.reminderId || ''))) return null;
+    const startedAt = isValidDate(rawTimer.startedAt) ? new Date(rawTimer.startedAt).toISOString() : null;
+    let accumulatedMs = safeNumber(rawTimer.accumulatedMs, 0, 365 * 24 * 60 * 60 * 1000);
+    let pausedAt = isValidDate(rawTimer.pausedAt) ? new Date(rawTimer.pausedAt).toISOString() : null;
+
+    if (!('accumulatedMs' in rawTimer) && rawTimer.stoppedMinutes) {
+      accumulatedMs = safeNumber(rawTimer.stoppedMinutes, 0, 525600) * 60000;
+      pausedAt = isValidDate(rawTimer.stoppedAt) ? new Date(rawTimer.stoppedAt).toISOString() : now().toISOString();
+      repairs.push('Migrated an older timer.');
+    }
+
+    if (!startedAt && !pausedAt && accumulatedMs === 0) return null;
+    return {
+      reminderId: String(rawTimer.reminderId),
+      startedAt: pausedAt ? null : (startedAt || now().toISOString()),
+      accumulatedMs,
+      pausedAt,
+      firstStartedAt: isValidDate(rawTimer.firstStartedAt) ? new Date(rawTimer.firstStartedAt).toISOString() : (startedAt || null)
+    };
+  }
+
+  function migrateState(raw) {
+    const repairs = [];
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const migrated = defaultState();
+    const rawReminders = Array.isArray(source.reminders) ? source.reminders.slice(0, CONFIG.maxReminders) : [];
+    const rawHistory = Array.isArray(source.history) ? source.history.slice(0, CONFIG.maxHistory) : [];
+    const ids = new Set();
+
+    migrated.reminders = rawReminders.map((item, index) => {
+      const rawReminder = item && typeof item === 'object' ? item : {};
+      let id = cleanText(rawReminder.id || uid(), 120);
+      if (!id || ids.has(id)) {
+        id = uid();
+        repairs.push(`Repaired reminder ID ${index + 1}.`);
+      }
+      ids.add(id);
+      const fallbackDate = new Date(Date.now() + 5 * 60000);
+      const nextDate = safeDate(rawReminder.nextAt, fallbackDate);
+      if (!isValidDate(rawReminder.nextAt)) repairs.push(`Repaired the date for reminder ${index + 1}.`);
+      const repeat = CONFIG.repeats.includes(rawReminder.repeat) ? rawReminder.repeat : 'once';
+      if (repeat !== rawReminder.repeat && rawReminder.repeat != null) repairs.push(`Repaired the repeat setting for reminder ${index + 1}.`);
+      const snoozedUntil = isValidDate(rawReminder.snoozedUntil) ? new Date(rawReminder.snoozedUntil).toISOString() : null;
+      const manualDueAt = isValidDate(rawReminder.manualDueAt) ? new Date(rawReminder.manualDueAt).toISOString() : null;
+      return {
+        id,
+        title: cleanText(rawReminder.title, 80),
+        text: cleanText(rawReminder.text, 800),
+        category: cleanText(rawReminder.category, 40),
+        plannedMinutes: safeNumber(rawReminder.plannedMinutes, 0, 1440),
+        color: validColour(rawReminder.color || source.settings?.defaultColor),
+        repeat,
+        nextAt: nextDate.toISOString(),
+        anchorDay: safeNumber(rawReminder.anchorDay || nextDate.getDate(), 1, 31),
+        snoozedUntil,
+        manualDueAt,
+        snoozeCount: safeNumber(rawReminder.snoozeCount, 0, 100000),
+        active: rawReminder.active !== false,
+        paused: Boolean(rawReminder.paused),
+        createdAt: isValidDate(rawReminder.createdAt) ? new Date(rawReminder.createdAt).toISOString() : now().toISOString(),
+        updatedAt: isValidDate(rawReminder.updatedAt) ? new Date(rawReminder.updatedAt).toISOString() : now().toISOString()
+      };
+    }).filter(reminder => reminder.text.trim() || reminder.title.trim());
+
+    const reminderIds = new Set(migrated.reminders.map(reminder => reminder.id));
+    migrated.history = rawHistory.map((item, index) => {
+      const rawItem = item && typeof item === 'object' ? item : {};
+      const completedAt = safeDate(rawItem.completedAt, null);
+      if (!completedAt) {
+        repairs.push(`Removed invalid history item ${index + 1}.`);
+        return null;
+      }
+      return {
+        id: cleanText(rawItem.id || uid(), 120),
+        reminderId: cleanText(rawItem.reminderId, 120),
+        title: cleanText(rawItem.title, 80),
+        text: cleanText(rawItem.text, 800),
+        category: cleanText(rawItem.category, 40),
+        plannedMinutes: safeNumber(rawItem.plannedMinutes, 0, 1440),
+        actualMinutes: safeNumber(rawItem.actualMinutes, 0, 1440),
+        repeat: CONFIG.repeats.includes(rawItem.repeat) ? rawItem.repeat : 'once',
+        scheduledFor: isValidDate(rawItem.scheduledFor) ? new Date(rawItem.scheduledFor).toISOString() : completedAt.toISOString(),
+        effectiveDue: isValidDate(rawItem.effectiveDue) ? new Date(rawItem.effectiveDue).toISOString() : completedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+        completedEarly: Boolean(rawItem.completedEarly),
+        snoozeCount: safeNumber(rawItem.snoozeCount, 0, 100000),
+        completionNote: cleanText(rawItem.completionNote, 160),
+        timerStartedAt: isValidDate(rawItem.timerStartedAt) ? new Date(rawItem.timerStartedAt).toISOString() : null
+      };
+    }).filter(Boolean);
+
+    const rawSettings = source.settings && typeof source.settings === 'object' ? source.settings : {};
+    const rawPosition = rawSettings.notePosition;
+    migrated.settings = {
+      defaultColor: validColour(rawSettings.defaultColor),
+      historyYear: safeNumber(rawSettings.historyYear || now().getFullYear(), 2000, 2200),
+      notePosition: rawPosition && Number.isFinite(Number(rawPosition.left)) && Number.isFinite(Number(rawPosition.top))
+        ? {left: Number(rawPosition.left), top: Number(rawPosition.top)}
+        : null
+    };
+    migrated.timer = migrateTimer(source.timer, reminderIds, repairs);
+    migrated.version = CONFIG.version;
+    migrated.updatedAt = isValidDate(source.updatedAt) ? new Date(source.updatedAt).toISOString() : now().toISOString();
+    return {state: migrated, repairs};
+  }
+
+  function loadState() {
+    testStorage();
+    if (!storageInfo.available) return defaultState();
+    const stored = localStorage.getItem(CONFIG.storageKey);
+    if (!stored) return defaultState();
+    try {
+      const parsed = JSON.parse(stored);
+      const result = migrateState(parsed);
+      storageInfo.repairs = result.repairs.length;
+      if (result.repairs.length) {
+        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.`;
+      }
+      return result.state;
+    } catch (error) {
+      console.error('Could not read saved Post-it data:', error);
+      storageInfo.loadFailed = true;
+      storageInfo.message = 'The saved Post-it data could not be read. The app has opened with an empty temporary state and has not overwritten the unreadable copy. A previous recovery point may still be available in Settings.';
+      return defaultState();
+    }
+  }
+
+  let state = loadState();
+
+  function updateStorageBanner() {
+    const banner = $('#storageBanner');
+    if (!storageInfo.message || ui.bannerDismissed) {
+      banner.classList.add('hidden');
+      return;
+    }
+    $('#storageBannerText').textContent = storageInfo.message;
+    banner.classList.remove('hidden');
+  }
+
+  function persistState({render = true, preserveUndo = false} = {}) {
+    if (!preserveUndo && ui.undoState) hideUndo();
+    state.version = CONFIG.version;
+    state.updatedAt = now().toISOString();
+    if (storageInfo.available) {
+      try {
+        localStorage.setItem(CONFIG.storageKey, JSON.stringify(state));
+      } catch (error) {
+        console.error('Could not save Post-it data:', error);
+        storageInfo.available = false;
+        storageInfo.message = error?.name === 'QuotaExceededError'
+          ? 'The browser storage space is full. Export a backup now. New changes will remain only until this page closes.'
+          : 'The browser blocked saving. New changes will remain only until this page closes.';
+        ui.bannerDismissed = false;
+        updateStorageBanner();
+      }
+    }
+    if (render) renderAll();
+  }
+
+  function readSnapshots() {
+    if (!storageInfo.available) return [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(CONFIG.snapshotKey) || '[]');
+      return Array.isArray(raw) ? raw.filter(item => item && item.id && item.state).slice(0, CONFIG.maxSnapshots) : [];
+    } catch (error) {
+      console.warn('Could not read recovery snapshots:', error?.name || 'unknown error');
+      return [];
+    }
+  }
+
+  function writeSnapshots(snapshots) {
+    if (!storageInfo.available) return false;
+    let list = snapshots.slice(0, CONFIG.maxSnapshots);
+    while (list.length) {
+      try {
+        localStorage.setItem(CONFIG.snapshotKey, JSON.stringify(list));
+        return true;
+      } catch (error) {
+        if (error?.name !== 'QuotaExceededError') {
+          console.warn('Could not save recovery snapshots:', error?.name || 'unknown error');
+          return false;
+        }
+        list.pop();
+      }
+    }
+    return false;
+  }
+
+  function saveRecoverySnapshot(snapshotState, reason) {
+    if (!storageInfo.available) return;
+    const snapshots = readSnapshots();
+    const serialised = JSON.stringify(snapshotState);
+    if (snapshots[0] && JSON.stringify(snapshots[0].state) === serialised) return;
+    snapshots.unshift({
+      id: uid(),
+      createdAt: now().toISOString(),
+      reason: cleanText(reason || 'Recent state', 120),
+      state: deepClone(snapshotState)
+    });
+    writeSnapshots(snapshots);
+  }
+
+  function announce(message) {
+    $('#liveStatus').textContent = '';
+    window.setTimeout(() => { $('#liveStatus').textContent = message; }, 20);
+  }
+
+  function toast(message, duration = 2500) {
+    const element = $('#toast');
+    element.textContent = message;
+    element.classList.add('show');
+    clearTimeout(element._timer);
+    element._timer = setTimeout(() => element.classList.remove('show'), duration);
+    announce(message);
+  }
+
+  function hideUndo() {
+    clearTimeout(ui.undoTimer);
+    ui.undoTimer = null;
+    ui.undoState = null;
+    $('#undoBar').classList.remove('show');
+  }
+
+  function showUndo(message, previousState) {
+    hideUndo();
+    ui.undoState = deepClone(previousState);
+    $('#undoText').textContent = message;
+    $('#undoBar').classList.add('show');
+    ui.undoTimer = setTimeout(hideUndo, CONFIG.undoMs);
+  }
+
+  function undoLastAction() {
+    if (!ui.undoState) return;
+    const current = deepClone(state);
+    saveRecoverySnapshot(current, 'Before undo');
+    state = migrateState(ui.undoState).state;
+    hideUndo();
+    persistState();
+    toast('Action undone.');
+  }
+
+  function runMutation({reason = 'change', undoMessage = '', snapshot = true, animate = false} = {}, mutator) {
+    if (ui.actionLocked) return false;
+    const previousState = deepClone(state);
+    const execute = () => {
+      try {
+        const changed = mutator();
+        if (changed === false) return false;
+        if (snapshot) saveRecoverySnapshot(previousState, `Before ${reason}`);
+        persistState();
+        if (undoMessage) showUndo(undoMessage, previousState);
+        return true;
+      } catch (error) {
+        console.error(`Post-it action failed (${reason}):`, error);
+        state = previousState;
+        persistState();
+        toast('That action could not be completed. Your previous data was restored.');
+        return false;
+      }
+    };
+
+    if (!animate) return execute();
+    ui.actionLocked = true;
+    $('#postit').classList.add('animate-out');
+    window.setTimeout(() => {
+      execute();
+      $('#postit').classList.remove('animate-out');
+      ui.actionLocked = false;
+    }, 190);
+    return true;
+  }
+
+  function effectiveDue(reminder) {
+    return safeDate(reminder.snoozedUntil) || safeDate(reminder.manualDueAt) || safeDate(reminder.nextAt, now());
+  }
+
+  function isRepeating(reminder) { return reminder.repeat !== 'once'; }
+  function isDue(reminder) { return reminder.active !== false && !reminder.paused && effectiveDue(reminder) <= now(); }
+  function activeList() { return state.reminders.filter(reminder => reminder.active !== false); }
+  function dueList() {
+    const rows = state.reminders.filter(isDue).sort((a, b) => effectiveDue(a) - effectiveDue(b));
+    if (ui.pinnedReminderId) {
+      const index = rows.findIndex(reminder => reminder.id === ui.pinnedReminderId);
+      if (index > 0) rows.unshift(rows.splice(index, 1)[0]);
+      if (index < 0) ui.pinnedReminderId = null;
+    }
+    return rows;
+  }
+  function upcomingList() {
+    return state.reminders
+      .filter(reminder => reminder.active !== false && !reminder.paused && !isDue(reminder))
+      .sort((a, b) => effectiveDue(a) - effectiveDue(b));
+  }
+
+  function overdueText(date) {
+    const minutes = Math.max(0, Math.round((now() - date) / 60000));
+    return minutes > 0 ? `Overdue ${humanMinutes(minutes)}` : 'Due now';
+  }
+
+  function dueChip(reminder) {
+    const scheduled = new Date(reminder.nextAt);
+    const due = effectiveDue(reminder);
+    if (reminder.manualDueAt && scheduled > now()) return {text: `Started early · due ${fmtShort(scheduled)}`, className: 'early'};
+    if (reminder.snoozedUntil && due > now()) return {text: `Delayed until ${fmtShort(due)}`, className: ''};
+    return {text: overdueText(due), className: due < now() ? 'overdue' : ''};
+  }
+
+  function addOneOccurrence(date, reminder) {
+    const result = new Date(date);
+    result.setSeconds(0, 0);
+    if (reminder.repeat === 'daily') {
+      result.setDate(result.getDate() + 1);
+      return result;
+    }
+    if (reminder.repeat === 'weekdays') {
+      do { result.setDate(result.getDate() + 1); } while ([0, 6].includes(result.getDay()));
+      return result;
+    }
+    if (reminder.repeat === 'weekly') {
+      result.setDate(result.getDate() + 7);
+      return result;
+    }
+    if (reminder.repeat === 'monthly') {
+      const anchorDay = safeNumber(reminder.anchorDay || result.getDate(), 1, 31);
+      const year = result.getFullYear();
+      const month = result.getMonth() + 1;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      return new Date(year, month, Math.min(anchorDay, lastDay), result.getHours(), result.getMinutes(), 0, 0);
+    }
+    return null;
+  }
+
+  function nextOccurrenceAfterCompletion(reminder, completedAt = now()) {
+    const scheduled = new Date(reminder.nextAt);
+    let candidate = addOneOccurrence(scheduled, reminder);
+    if (!candidate) return null;
+    if (completedAt < scheduled) return candidate;
+    let guard = 0;
+    while (candidate <= completedAt && guard < 10000) {
+      candidate = addOneOccurrence(candidate, reminder);
+      guard += 1;
+    }
+    if (guard >= 10000) throw new Error('Recurrence calculation exceeded safety limit.');
+    return candidate;
+  }
+
+  function timerElapsedMs(reminderId) {
+    const timer = state.timer;
+    if (!timer || timer.reminderId !== reminderId) return 0;
+    const accumulated = Math.max(0, Number(timer.accumulatedMs) || 0);
+    if (timer.pausedAt || !timer.startedAt) return accumulated;
+    return accumulated + Math.max(0, Date.now() - new Date(timer.startedAt).getTime());
+  }
+
+  function timerMinutes(reminderId) {
+    const milliseconds = timerElapsedMs(reminderId);
+    return milliseconds ? Math.max(1, Math.round(milliseconds / 60000)) : 0;
+  }
+
+  function stopTimerDisplay() {
+    if (ui.timerHandle) clearInterval(ui.timerHandle);
+    ui.timerHandle = null;
+  }
+
+  function startTimerDisplay() {
+    stopTimerDisplay();
+    ui.timerHandle = setInterval(() => {
+      const element = $('#elapsedTime');
+      if (element && ui.currentReminderId) element.textContent = humanDurationMs(timerElapsedMs(ui.currentReminderId));
+    }, 1000);
+  }
+
+  function toggleTimer(reminderId) {
+    const existing = state.timer;
+    if (existing && existing.reminderId === reminderId) {
+      if (existing.pausedAt || !existing.startedAt) {
+        existing.startedAt = now().toISOString();
+        existing.firstStartedAt = existing.firstStartedAt || existing.startedAt;
+        existing.pausedAt = null;
+        persistState();
+        toast('Timer resumed.');
+      } else {
+        existing.accumulatedMs = timerElapsedMs(reminderId);
+        existing.startedAt = null;
+        existing.pausedAt = now().toISOString();
+        persistState();
+        toast(`Timer paused at ${humanDurationMs(existing.accumulatedMs)}.`);
+      }
+      return;
+    }
+
+    if (existing && existing.reminderId !== reminderId && !window.confirm('Another Post-it timer is running. Replace it with this timer?')) return;
+    state.timer = {reminderId, startedAt: now().toISOString(), firstStartedAt: now().toISOString(), accumulatedMs: 0, pausedAt: null};
+    persistState();
+    toast('Timer started.');
+  }
+
+  function reminderDisplayTitle(reminder) {
+    return reminder.title.trim() || reminder.text.trim().split(/\n/)[0].slice(0, 80) || 'Post-it';
+  }
+
+  function renderReminderBody(reminder, {upNext = false, waiting = 0} = {}) {
+    const hasTitle = Boolean(reminder.title.trim());
+    const scheduled = new Date(reminder.nextAt);
+    const displayedDate = upNext && reminder.snoozedUntil ? effectiveDue(reminder) : scheduled;
+    const timerForThis = state.timer && state.timer.reminderId === reminder.id;
+    const timerActive = Boolean(timerForThis && !state.timer.pausedAt && state.timer.startedAt);
+    const chip = upNext ? {text: 'All caught up', className: ''} : dueChip(reminder);
+    const timerText = timerActive
+      ? `${ICONS.pause}<span>Pause timer · <span id="elapsedTime">${esc(humanDurationMs(timerElapsedMs(reminder.id)))}</span></span>`
+      : timerForThis
+        ? `${ICONS.play}<span>Resume timer · ${esc(humanDurationMs(timerElapsedMs(reminder.id)))}</span>`
+        : `${ICONS.play}<span>Start timer</span>`;
+
+    return `
+      <div class="note-head">
+        <span class="chip ${chip.className}">${esc(chip.text)}</span>
+        <button type="button" class="more-btn" id="moreCurrent" aria-label="Edit this Post-it" title="Edit this Post-it">&bull;&bull;&bull;</button>
+      </div>
+      ${upNext ? '<div class="note-kicker">Up next</div>' : ''}
+      ${hasTitle ? `<h1 class="note-title">${esc(reminder.title)}</h1><div class="note-copy">${esc(reminder.text)}</div>` : `<h1 class="note-copy primary-copy">${esc(reminder.text)}</h1>`}
+      <div class="note-meta">
+        ${reminder.category ? `<span class="meta-pill">${esc(reminder.category)}</span>` : ''}
+        <span class="meta-pill">${esc(repeatLabel(reminder.repeat))}</span>
+        <span class="meta-pill">${esc(upNext && reminder.snoozedUntil ? `Returns ${fmtShort(displayedDate)}` : fmtShort(displayedDate))}</span>
+        ${reminder.plannedMinutes ? `<span class="meta-pill">${reminder.plannedMinutes} min planned</span>` : ''}
+      </div>
+      ${upNext ? '' : `<div class="micro-row"><button type="button" class="timer-btn ${timerActive ? 'active' : ''}" id="timerBtn">${timerText}</button>${waiting ? `<span class="behind">${waiting} more due</span>` : ''}</div>`}
+      <div class="note-actions">
+        ${upNext
+          ? '<button type="button" class="action ghost" id="startEarlyBtn">START NOW</button><button type="button" class="action primary" id="doneEarlyBtn">DONE EARLY</button>'
+          : '<button type="button" class="action" id="delayBtn">DELAY</button><button type="button" class="action primary" id="doneBtn">DONE</button>'}
+      </div>`;
+  }
+
+  function renderPostit() {
+    stopTimerDisplay();
+    const captureMode = ui.mode === 'create';
+    const wrap = $('#floatWrap');
+    const sizeChanged = wrap.classList.contains('capture-mode') !== captureMode;
+    wrap.classList.toggle('capture-mode', captureMode);
+    if (sizeChanged) window.requestAnimationFrame(placeNote);
+    if (captureMode) {
+      renderCapture();
+      return;
+    }
+
+    const note = $('#postit');
+    const due = dueList();
+    if (due.length) {
+      const reminder = due[0];
+      ui.currentReminderId = reminder.id;
+      note.style.backgroundColor = validColour(reminder.color);
+      note.innerHTML = renderReminderBody(reminder, {waiting: due.length - 1});
+      $('#moreCurrent').addEventListener('click', event => openEdit(reminder.id, event.currentTarget));
+      $('#delayBtn').addEventListener('click', event => openSnooze(reminder.id, event.currentTarget));
+      $('#doneBtn').addEventListener('click', event => openDone(reminder.id, event.currentTarget));
+      $('#timerBtn').addEventListener('click', () => toggleTimer(reminder.id));
+      if (state.timer?.reminderId === reminder.id && !state.timer.pausedAt && state.timer.startedAt) startTimerDisplay();
+      return;
+    }
+
+    const upcoming = upcomingList()[0];
+    if (upcoming) {
+      ui.currentReminderId = upcoming.id;
+      note.style.backgroundColor = validColour(upcoming.color);
+      note.innerHTML = renderReminderBody(upcoming, {upNext: true});
+      $('#moreCurrent').addEventListener('click', event => openEdit(upcoming.id, event.currentTarget));
+      $('#startEarlyBtn').addEventListener('click', () => startReminderNow(upcoming.id, true));
+      $('#doneEarlyBtn').addEventListener('click', event => openDone(upcoming.id, event.currentTarget));
+      return;
+    }
+
+    ui.currentReminderId = null;
+    note.style.backgroundColor = validColour(state.settings.defaultColor);
+    note.innerHTML = `
+      <div class="note-head"><span class="chip">All caught up</span><button type="button" class="more-btn" id="moreEmpty" aria-label="Open all Post-its" title="Open all Post-its">&bull;&bull;&bull;</button></div>
+      <div class="empty-state"><div>
+        <div class="empty-mark">${ICONS.check}</div>
+        <h1>You're caught up.</h1>
+        <p>No upcoming Post-its yet. Add one now, or open the list to review paused reminders.</p>
+        <div class="empty-actions"><button type="button" id="clearNew">New Post-it</button><button type="button" id="clearBrowse">All Post-its</button></div>
+      </div></div>`;
+    $('#moreEmpty').addEventListener('click', event => openDrawer('notes', event.currentTarget));
+    $('#clearNew').addEventListener('click', () => startCapture());
+    $('#clearBrowse').addEventListener('click', event => openDrawer('notes', event.currentTarget));
+  }
+
+  function suggestedLaterToday() {
+    const date = new Date(Date.now() + 60 * 60000);
+    date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
+    if (date.getDate() !== now().getDate()) date.setHours(9, 0, 0, 0);
+    return date;
+  }
+
+  function presetDate(preset) {
+    const date = now();
+    if (preset === 'later') return suggestedLaterToday();
+    if (preset === 'tomorrow') {
+      date.setDate(date.getDate() + 1);
+      date.setHours(9, 0, 0, 0);
+      return date;
+    }
+    if (preset === 'nextworkday') {
+      do { date.setDate(date.getDate() + 1); } while ([0, 6].includes(date.getDay()));
+      date.setHours(8, 0, 0, 0);
+      return date;
+    }
+    return suggestedLaterToday();
+  }
+
+  function schedulePreviewText(date, repeat) {
+    if (!date || Number.isNaN(date.getTime())) return 'Choose a valid date and time.';
+    const immediate = date <= now() ? 'This Post-it will appear immediately. ' : '';
+    const repeatText = {
+      once: 'It will appear once.',
+      daily: 'It will then repeat every day.',
+      weekdays: 'It will then repeat each weekday.',
+      weekly: `It will then repeat every ${new Intl.DateTimeFormat('en-NZ', {weekday:'long'}).format(date)}.`,
+      monthly: `It will then repeat monthly on day ${date.getDate()}.`
+    }[repeat] || '';
+    return `${immediate}Next: ${fmt(date)}. ${repeatText}`;
+  }
+
+  function recentCategories() {
+    const scores = new Map();
+    const add = (category, weight) => {
+      const clean = cleanText(category, 40).trim();
+      if (clean) scores.set(clean, (scores.get(clean) || 0) + weight);
+    };
+    state.reminders.forEach(reminder => add(reminder.category, 3));
+    state.history.slice(-200).forEach((item, index) => add(item.category, 1 + index / 200));
+    return [...scores.entries()].sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12).map(([category]) => category);
+  }
+
+  function updateCategorySuggestions() {
+    $('#categorySuggestions').innerHTML = recentCategories().map(category => `<option value="${esc(category)}"></option>`).join('');
+  }
+
+  function startCapture({voiceReady = false} = {}) {
+    closeDrawer();
+    stopRecognition();
+    ui.mode = 'create';
+    ui.selectedPreset = 'later';
+    ui.captureDirty = false;
+    renderPostit();
+    window.setTimeout(() => {
+      if (voiceReady) $('#quickMic')?.focus();
+      else $('#quickText')?.focus();
+    }, 30);
+  }
+
+  function captureHasContent() {
+    return Boolean($('#quickText')?.value.trim() || $('#quickCategory')?.value.trim() || $('#quickMinutes')?.value);
+  }
+
+  function cancelCapture(force = false) {
+    if (!force && captureHasContent() && !window.confirm('Discard this unfinished Post-it?')) return;
+    stopRecognition();
+    ui.mode = 'current';
+    ui.captureDirty = false;
+    renderPostit();
+  }
+
+  function renderCapture() {
+    const note = $('#postit');
+    note.style.backgroundColor = validColour(state.settings.defaultColor);
+    const date = presetDate('later');
+    updateCategorySuggestions();
+    note.innerHTML = `
+      <div class="note-head"><span class="chip">New Post-it</span><button type="button" class="more-btn" id="cancelCapture" aria-label="Cancel new Post-it" title="Cancel">&times;</button></div>
+      <h1 class="capture-title">What should I remember?</h1>
+      <label class="sr-only" for="quickText">Reminder text</label>
+      <textarea class="capture-area" id="quickText" maxlength="800" placeholder="Type your reminder here..." aria-describedby="quickError"></textarea>
+      <div class="capture-voice"><button type="button" class="round-btn" id="quickMic" aria-label="Start voice dictation" title="Start voice dictation">${$('#voiceBtn').innerHTML}</button><span class="voice-text" id="voiceStatus">${speechSupported() ? 'Tap the microphone to dictate.' : 'Voice dictation is not available here. Typing still works.'}</span></div>
+      <div class="schedule-label">When?</div>
+      <div class="preset-grid" role="group" aria-label="Quick schedule choices">
+        <button type="button" class="preset-btn selected" data-preset="later">Later today</button>
+        <button type="button" class="preset-btn" data-preset="tomorrow">Tomorrow</button>
+        <button type="button" class="preset-btn" data-preset="nextworkday">Next workday</button>
+        <button type="button" class="preset-btn" data-preset="custom">Choose date</button>
+      </div>
+      <div class="schedule-row"><input type="date" id="quickDate" value="${localDate(date)}" aria-label="Reminder date"><input type="time" id="quickTime" value="${localTime(date)}" aria-label="Reminder time"><select id="quickRepeat" aria-label="Repeat"><option value="once">One time</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+      <div class="schedule-preview" id="quickSchedulePreview" aria-live="polite"></div>
+      <details class="capture-details"><summary>More options</summary><div class="details-grid"><div class="mini-field"><input id="quickCategory" list="categorySuggestions" maxlength="40" placeholder="Category e.g. Admin" aria-label="Category"></div><div class="mini-field"><input id="quickMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric" placeholder="Planned min" aria-label="Planned minutes"></div><div class="mini-field"><select id="quickColor" aria-label="Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div></div></details>
+      <div class="error-text" id="quickError" role="alert"></div>
+      <div class="capture-buttons"><button type="button" class="cancel" id="captureCancel">Cancel</button><button type="button" class="save" id="captureSave">Create Post-it</button></div>`;
+
+    $('#quickColor').value = validColour(state.settings.defaultColor);
+    $('#cancelCapture').addEventListener('click', () => cancelCapture());
+    $('#captureCancel').addEventListener('click', () => cancelCapture());
+    $('#captureSave').addEventListener('click', saveQuick);
+    $('#quickMic').addEventListener('click', () => toggleVoice());
+    $$('.preset-btn').forEach(button => button.addEventListener('click', () => applyPreset(button.dataset.preset)));
+    ['quickDate','quickTime','quickRepeat'].forEach(id => $(`#${id}`).addEventListener('input', updateQuickSchedulePreview));
+    ['quickText','quickCategory','quickMinutes','quickColor'].forEach(id => $(`#${id}`).addEventListener('input', () => { ui.captureDirty = true; }));
+    updateQuickSchedulePreview();
+  }
+
+  function applyPreset(preset) {
+    ui.selectedPreset = preset;
+    $$('.preset-btn').forEach(button => button.classList.toggle('selected', button.dataset.preset === preset));
+    if (preset !== 'custom') {
+      const date = presetDate(preset);
+      $('#quickDate').value = localDate(date);
+      $('#quickTime').value = localTime(date);
+    }
+    $('#quickDate').focus();
+    updateQuickSchedulePreview();
+  }
+
+  function updateQuickSchedulePreview() {
+    const date = parseLocal($('#quickDate').value, $('#quickTime').value);
+    $('#quickSchedulePreview').textContent = schedulePreviewText(date, $('#quickRepeat').value);
+  }
+
+  function saveQuick() {
+    const error = $('#quickError');
+    error.textContent = '';
+    const text = cleanText($('#quickText').value, 800).trim();
+    if (!text) {
+      error.textContent = 'Write or dictate the reminder first.';
+      $('#quickText').focus();
+      return;
+    }
+    const date = parseLocal($('#quickDate').value, $('#quickTime').value);
+    if (Number.isNaN(date.getTime())) {
+      error.textContent = 'Choose a valid date and time.';
+      $('#quickDate').focus();
+      return;
+    }
+    const minutesText = $('#quickMinutes').value.trim();
+    const plannedMinutes = minutesText === '' ? 0 : Number(minutesText);
+    if (!Number.isFinite(plannedMinutes) || plannedMinutes < 0 || plannedMinutes > 1440 || !Number.isInteger(plannedMinutes)) {
+      error.textContent = 'Planned minutes must be a whole number from 0 to 1440.';
+      $('#quickMinutes').focus();
+      return;
+    }
+    const repeat = CONFIG.repeats.includes($('#quickRepeat').value) ? $('#quickRepeat').value : 'once';
+    const previous = deepClone(state);
+    state.reminders.push({
+      id: uid(),
+      title: '',
+      text,
+      category: cleanText($('#quickCategory').value, 40).trim(),
+      plannedMinutes,
+      color: validColour($('#quickColor').value),
+      repeat,
+      nextAt: date.toISOString(),
+      anchorDay: date.getDate(),
+      snoozedUntil: null,
+      manualDueAt: null,
+      snoozeCount: 0,
+      active: true,
+      paused: false,
+      createdAt: now().toISOString(),
+      updatedAt: now().toISOString()
+    });
+    saveRecoverySnapshot(previous, 'Before creating a Post-it');
+    ui.mode = 'current';
+    ui.captureDirty = false;
+    stopRecognition();
+    persistState();
+    toast('Post-it created.');
+  }
+
+  function openSnooze(reminderId, opener) {
+    ui.currentReminderId = reminderId;
+    $('#snoozeError').textContent = '';
+    $('#customSnooze').value = isoLocal(new Date(Date.now() + 2 * 3600000));
+    openDialog($('#snoozeDialog'), opener);
+  }
+
+  function calculateSnooze(value, reminder) {
+    const date = now();
+    if (value === 'tomorrow') {
+      date.setDate(date.getDate() + 1);
+      const scheduled = new Date(reminder.nextAt);
+      date.setHours(scheduled.getHours(), scheduled.getMinutes(), 0, 0);
+      return date;
+    }
+    if (value === 'nextworkday') {
+      do { date.setDate(date.getDate() + 1); } while ([0,6].includes(date.getDay()));
+      date.setHours(8,0,0,0);
+      return date;
+    }
+    return new Date(Date.now() + Number(value) * 60000);
+  }
+
+  function applySnooze(value) {
+    const reminder = state.reminders.find(item => item.id === ui.currentReminderId);
+    if (!reminder) return;
+    const date = calculateSnooze(value, reminder);
+    closeDialog($('#snoozeDialog'));
+    runMutation({reason: 'delaying a Post-it', undoMessage: `Post-it delayed until ${fmt(date)}.`, animate: true}, () => {
+      reminder.snoozedUntil = date.toISOString();
+      reminder.manualDueAt = null;
+      reminder.snoozeCount = safeNumber(reminder.snoozeCount + 1, 0, 100000);
+      reminder.updatedAt = now().toISOString();
+      if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
+    });
+  }
+
+  function applyCustomSnooze() {
+    const error = $('#snoozeError');
+    error.textContent = '';
+    const date = new Date($('#customSnooze').value);
+    if (Number.isNaN(date.getTime()) || date <= now()) {
+      error.textContent = 'Choose a future date and time.';
+      $('#customSnooze').focus();
+      return;
+    }
+    const reminder = state.reminders.find(item => item.id === ui.currentReminderId);
+    if (!reminder) return;
+    closeDialog($('#snoozeDialog'));
+    runMutation({reason: 'delaying a Post-it', undoMessage: `Post-it delayed until ${fmt(date)}.`, animate: true}, () => {
+      reminder.snoozedUntil = date.toISOString();
+      reminder.manualDueAt = null;
+      reminder.snoozeCount = safeNumber(reminder.snoozeCount + 1, 0, 100000);
+      reminder.updatedAt = now().toISOString();
+      if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
+    });
+  }
+
+  function openDone(reminderId, opener) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder || ui.actionLocked) return;
+    ui.currentReminderId = reminderId;
+    const measured = timerMinutes(reminderId);
+    if (measured > 0 && measured <= 1440) {
+      finishReminder(reminder, measured, '', false);
+      return;
+    }
+    $('#doneName').textContent = reminderDisplayTitle(reminder);
+    $('#completionNote').value = '';
+    $('#stopRepeat').checked = false;
+    $('#stopRepeatRow').classList.toggle('hidden', !isRepeating(reminder));
+    $('#doneError').textContent = '';
+    const suggested = measured || reminder.plannedMinutes || 15;
+    $('#actualMinutes').value = Math.min(suggested, 1440);
+    $('#doneTimeHint').textContent = measured > 1440
+      ? `The timer is over 24 hours. Enter the actual time to record.`
+      : 'Choose the closest time, or enter an exact value.';
+    $$('#timeGrid [data-minutes]').forEach(button => {
+      const value = Number(button.dataset.minutes);
+      button.classList.toggle('selected', Number.isFinite(value) && value === suggested);
+    });
+    openDialog($('#doneDialog'), opener);
+    window.setTimeout(() => $('#completeBtn').focus(), 20);
+  }
+
+  function selectDoneMinutes(value) {
+    if (value === 'other') {
+      $('#actualMinutes').focus();
+      $('#actualMinutes').select();
+      return;
+    }
+    $('#actualMinutes').value = value;
+    $$('#timeGrid [data-minutes]').forEach(button => button.classList.toggle('selected', button.dataset.minutes === String(value)));
+    $('#completeBtn').focus();
+  }
+
+  function completeReminder() {
+    if (ui.actionLocked) return;
+    const reminder = state.reminders.find(item => item.id === ui.currentReminderId);
+    if (!reminder) return;
+    const rawMinutes = Number($('#actualMinutes').value);
+    if (!Number.isFinite(rawMinutes) || rawMinutes < 0 || rawMinutes > 1440 || !Number.isInteger(rawMinutes)) {
+      $('#doneError').textContent = 'Enter a whole number from 0 to 1440 minutes.';
+      $('#actualMinutes').focus();
+      return;
+    }
+    const completionNote = cleanText($('#completionNote').value, 160).trim();
+    const stopRepeating = $('#stopRepeat').checked;
+    closeDialog($('#doneDialog'));
+    finishReminder(reminder, rawMinutes, completionNote, stopRepeating);
+  }
+
+  function finishReminder(reminder, actualMinutes, completionNote = '', stopRepeating = false) {
+    if (!reminder || ui.actionLocked) return;
+    const completedAt = now();
+    const completedEarly = completedAt < new Date(reminder.nextAt);
+    const repeatsAgain = isRepeating(reminder) && !stopRepeating;
+    const message = repeatsAgain
+      ? `Post-it completed in ${humanMinutes(actualMinutes)}. The next occurrence was scheduled.`
+      : `Post-it completed in ${humanMinutes(actualMinutes)}.`;
+    runMutation({reason: 'completing a Post-it', undoMessage: message, animate: true}, () => {
+      state.history.push({
+        id: uid(),
+        reminderId: reminder.id,
+        title: reminder.title,
+        text: reminder.text,
+        category: reminder.category,
+        plannedMinutes: reminder.plannedMinutes,
+        actualMinutes,
+        repeat: reminder.repeat,
+        scheduledFor: reminder.nextAt,
+        effectiveDue: effectiveDue(reminder).toISOString(),
+        completedAt: completedAt.toISOString(),
+        completedEarly,
+        snoozeCount: reminder.snoozeCount,
+        completionNote,
+        timerStartedAt: state.timer?.reminderId === reminder.id ? (state.timer.firstStartedAt || state.timer.startedAt) : null
+      });
+      if (state.timer?.reminderId === reminder.id) state.timer = null;
+      if (repeatsAgain) {
+        const next = nextOccurrenceAfterCompletion(reminder, completedAt);
+        reminder.nextAt = next.toISOString();
+        reminder.anchorDay = reminder.anchorDay || new Date(reminder.nextAt).getDate();
+        reminder.snoozedUntil = null;
+        reminder.manualDueAt = null;
+        reminder.snoozeCount = 0;
+        reminder.updatedAt = completedAt.toISOString();
+      } else {
+        reminder.active = false;
+        reminder.snoozedUntil = null;
+        reminder.manualDueAt = null;
+        reminder.updatedAt = completedAt.toISOString();
+      }
+      if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
+    });
+  }
+
+  function startReminderNow(reminderId, startTimer = false) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder || reminder.paused || reminder.active === false) return;
+    if (startTimer && state.timer && state.timer.reminderId !== reminderId && !window.confirm('Another Post-it timer is running. Replace it with this timer?')) return;
+    const previous = deepClone(state);
+    reminder.manualDueAt = new Date(Date.now() - 1000).toISOString();
+    reminder.snoozedUntil = null;
+    reminder.updatedAt = now().toISOString();
+    if (startTimer) state.timer = {reminderId, startedAt: now().toISOString(), firstStartedAt: now().toISOString(), accumulatedMs: 0, pausedAt: null};
+    saveRecoverySnapshot(previous, 'Before starting a Post-it early');
+    closeDrawer();
+    persistState();
+    toast(startTimer ? 'Post-it started early and timer started.' : 'Post-it brought to the front.');
+  }
+
+  function editFormSignature() {
+    return JSON.stringify({
+      title: $('#editTitle').value,
+      text: $('#editText').value,
+      category: $('#editCategory').value,
+      minutes: $('#editMinutes').value,
+      color: $('#editColor').value,
+      date: $('#editDate').value,
+      time: $('#editTime').value,
+      repeat: $('#editRepeat').value,
+      paused: $('#editPaused').checked
+    });
+  }
+
+  function openEdit(reminderId, opener) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder) return;
+    updateCategorySuggestions();
+    $('#editId').value = reminder.id;
+    $('#editTitle').value = reminder.title;
+    $('#editText').value = reminder.text;
+    $('#editCategory').value = reminder.category;
+    $('#editMinutes').value = reminder.plannedMinutes || '';
+    $('#editColor').value = validColour(reminder.color);
+    const date = new Date(reminder.nextAt);
+    $('#editDate').value = localDate(date);
+    $('#editTime').value = localTime(date);
+    $('#editRepeat').value = reminder.repeat;
+    $('#editPaused').checked = reminder.paused;
+    $('#editError').textContent = '';
+    updateEditSchedulePreview();
+    ui.editInitial = editFormSignature();
+    openDialog($('#editDialog'), opener);
+    window.setTimeout(() => $('#editText').focus(), 20);
+  }
+
+  function updateEditSchedulePreview() {
+    const date = parseLocal($('#editDate').value, $('#editTime').value);
+    $('#editSchedulePreview').textContent = schedulePreviewText(date, $('#editRepeat').value);
+  }
+
+  function saveEdit() {
+    const reminder = state.reminders.find(item => item.id === $('#editId').value);
+    if (!reminder) return;
+    const text = cleanText($('#editText').value, 800).trim();
+    if (!text) {
+      $('#editError').textContent = 'Post-it text cannot be empty.';
+      $('#editText').focus();
+      return;
+    }
+    const date = parseLocal($('#editDate').value, $('#editTime').value);
+    if (Number.isNaN(date.getTime())) {
+      $('#editError').textContent = 'Choose a valid date and time.';
+      $('#editDate').focus();
+      return;
+    }
+    const minutesValue = Number($('#editMinutes').value || 0);
+    if (!Number.isFinite(minutesValue) || minutesValue < 0 || minutesValue > 1440 || !Number.isInteger(minutesValue)) {
+      $('#editError').textContent = 'Planned minutes must be a whole number from 0 to 1440.';
+      $('#editMinutes').focus();
+      return;
+    }
+    const previous = deepClone(state);
+    Object.assign(reminder, {
+      title: cleanText($('#editTitle').value, 80).trim(),
+      text,
+      category: cleanText($('#editCategory').value, 40).trim(),
+      plannedMinutes: minutesValue,
+      color: validColour($('#editColor').value),
+      nextAt: date.toISOString(),
+      anchorDay: date.getDate(),
+      repeat: CONFIG.repeats.includes($('#editRepeat').value) ? $('#editRepeat').value : 'once',
+      paused: $('#editPaused').checked,
+      snoozedUntil: null,
+      manualDueAt: null,
+      updatedAt: now().toISOString()
+    });
+    closeDialog($('#editDialog'), true);
+    saveRecoverySnapshot(previous, 'Before editing a Post-it');
+    persistState();
+    toast('Post-it updated.');
+  }
+
+  function deleteCurrentEdit() {
+    const reminder = state.reminders.find(item => item.id === $('#editId').value);
+    if (!reminder || !window.confirm('Delete this Post-it? Completed history will stay in your yearly report.')) return;
+    closeDialog($('#editDialog'), true);
+    runMutation({reason: 'deleting a Post-it', undoMessage: 'Post-it deleted.'}, () => {
+      reminder.active = false;
+      reminder.manualDueAt = null;
+      reminder.snoozedUntil = null;
+      reminder.updatedAt = now().toISOString();
+      if (state.timer?.reminderId === reminder.id) state.timer = null;
+      if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
+    });
+  }
+
+  function openDrawer(type, opener = document.activeElement) {
+    if (ui.mode === 'create' && captureHasContent() && !window.confirm('Discard the unfinished Post-it and open this panel?')) return;
+    if (ui.mode === 'create') cancelCapture(true);
+    ui.drawerOpener = opener;
+    ui.drawerType = type;
+    renderDrawer(type);
+    $('#drawer').inert = false;
+    $('#drawer').classList.add('open');
+    $('#drawerShade').classList.add('open');
+    $('#drawer').setAttribute('aria-hidden', 'false');
+    window.setTimeout(() => $('#drawerClose').focus(), 20);
+  }
+
+  function closeDrawer({restoreFocus = true} = {}) {
+    ui.drawerType = null;
+    const returnTarget = ui.drawerOpener;
+    ui.drawerOpener = null;
+    $('#drawer').classList.remove('open');
+    $('#drawerShade').classList.remove('open');
+    $('#drawer').setAttribute('aria-hidden', 'true');
+    $('#drawer').inert = true;
+    if (restoreFocus && returnTarget?.isConnected) returnTarget.focus();
+  }
+
+  function renderDrawer(type) {
+    if (type === 'notes') renderNotesDrawer();
+    else if (type === 'history') renderHistoryDrawer();
+    else renderSettingsDrawer();
+  }
+
+  function renderNotesDrawer() {
+    $('#drawerTitle').textContent = 'All Post-its';
+    $('#drawerBody').innerHTML = `
+      <div class="drawer-toolbar">
+        <input id="drawerSearch" type="search" placeholder="Search Post-its" aria-label="Search Post-its">
+        <select id="drawerFilter" aria-label="Filter Post-its"><option value="all">All</option><option value="due">Due</option><option value="upcoming">Upcoming</option><option value="repeating">Repeating</option><option value="paused">Paused</option></select>
+        <button type="button" class="primary-btn" id="drawerNew">New</button>
+      </div>
+      <div id="drawerCards"></div>`;
+    $('#drawerNew').addEventListener('click', () => startCapture());
+    $('#drawerSearch').addEventListener('input', paintCards);
+    $('#drawerFilter').addEventListener('change', paintCards);
+    paintCards();
+  }
+
+  function cardHtml(reminder) {
+    const status = reminder.paused ? 'Paused' : isDue(reminder) ? overdueText(effectiveDue(reminder)) : fmt(effectiveDue(reminder));
+    const actionLabel = reminder.paused ? 'Resume first' : isDue(reminder) ? 'Show' : 'Start';
+    return `<article class="card">
+      <div class="swatch" style="background:${validColour(reminder.color)}"></div>
+      <div class="card-main"><h3>${esc(reminderDisplayTitle(reminder))}</h3>${reminder.title ? `<p>${esc(reminder.text)}</p>` : ''}<div class="card-meta"><span>${esc(reminder.category || 'Uncategorised')}</span><span>${esc(repeatLabel(reminder.repeat))}</span><span>${esc(status)}</span></div></div>
+      <div class="card-actions">
+        <button type="button" data-card-action="start" data-id="${esc(reminder.id)}" ${reminder.paused ? 'disabled' : ''}>${actionLabel}</button>
+        <button type="button" data-card-action="edit" data-id="${esc(reminder.id)}">Edit</button>
+        <button type="button" data-card-action="pause" data-id="${esc(reminder.id)}">${reminder.paused ? 'Resume' : 'Pause'}</button>
+      </div>
+    </article>`;
+  }
+
+  function paintCards() {
+    const container = $('#drawerCards');
+    if (!container) return;
+    const query = $('#drawerSearch').value.trim().toLocaleLowerCase('en-NZ');
+    const filter = $('#drawerFilter').value;
+    let rows = activeList().sort((a,b) => effectiveDue(a) - effectiveDue(b));
+    if (query) rows = rows.filter(reminder => `${reminder.title} ${reminder.text} ${reminder.category}`.toLocaleLowerCase('en-NZ').includes(query));
+    if (filter === 'due') rows = rows.filter(isDue);
+    if (filter === 'upcoming') rows = rows.filter(reminder => !isDue(reminder) && !reminder.paused);
+    if (filter === 'repeating') rows = rows.filter(isRepeating);
+    if (filter === 'paused') rows = rows.filter(reminder => reminder.paused);
+    container.innerHTML = rows.length ? rows.map(cardHtml).join('') : '<div class="panel muted">No matching Post-its.</div>';
+    container.onclick = event => {
+      const button = event.target.closest('[data-card-action]');
+      if (!button) return;
+      handleCardAction(button.dataset.cardAction, button.dataset.id, button);
+    };
+  }
+
+  function handleCardAction(action, reminderId, button) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder) return;
+    if (action === 'edit') {
+      openEdit(reminderId, button);
+      return;
+    }
+    if (action === 'start') {
+      if (isDue(reminder)) {
+        ui.pinnedReminderId = reminder.id;
+        closeDrawer();
+        renderPostit();
+        toast('Post-it shown.');
+      } else {
+        startReminderNow(reminderId, true);
+      }
+      return;
+    }
+    if (action === 'pause') {
+      const previous = deepClone(state);
+      reminder.paused = !reminder.paused;
+      reminder.updatedAt = now().toISOString();
+      if (reminder.paused && state.timer?.reminderId === reminder.id) state.timer = null;
+      saveRecoverySnapshot(previous, `Before ${reminder.paused ? 'pausing' : 'resuming'} a Post-it`);
+      persistState();
+      toast(reminder.paused ? 'Post-it paused.' : 'Post-it resumed.');
+    }
+  }
+
+  function historyYearOptions() {
+    return [...new Set([now().getFullYear(), ...state.history.map(item => new Date(item.completedAt).getFullYear())])].sort((a,b) => b - a);
+  }
+
+  function yearRows(year) {
+    return state.history.filter(item => new Date(item.completedAt).getFullYear() === year).sort((a,b) => new Date(a.completedAt) - new Date(b.completedAt));
+  }
+
+  function summariseYear(year) {
+    const rows = yearRows(year);
+    const totalMinutes = rows.reduce((sum, item) => sum + item.actualMinutes, 0);
+    const plannedMinutes = rows.reduce((sum, item) => sum + item.plannedMinutes, 0);
+    const snoozes = rows.reduce((sum, item) => sum + item.snoozeCount, 0);
+    const byCategory = new Map();
+    const byMonth = new Map();
+    rows.forEach(item => {
+      const category = item.category || 'Uncategorised';
+      const current = byCategory.get(category) || {count:0, actual:0, planned:0};
+      current.count += 1;
+      current.actual += item.actualMinutes;
+      current.planned += item.plannedMinutes;
+      byCategory.set(category, current);
+      const month = new Intl.DateTimeFormat('en-NZ', {month:'long'}).format(new Date(item.completedAt));
+      byMonth.set(month, (byMonth.get(month) || 0) + item.actualMinutes);
+    });
+    return {year, rows, totalMinutes, plannedMinutes, snoozes, byCategory, byMonth};
+  }
+
+  function renderHistoryDrawer() {
+    $('#drawerTitle').textContent = 'Time and history';
+    const years = historyYearOptions();
+    const selected = years.includes(Number(state.settings.historyYear)) ? Number(state.settings.historyYear) : years[0];
+    $('#drawerBody').innerHTML = `
+      <div class="drawer-toolbar">
+        <select id="historyYear" aria-label="History year">${years.map(year => `<option value="${year}" ${year === selected ? 'selected' : ''}>${year}</option>`).join('')}</select>
+        <button type="button" class="primary-btn" id="exportYear">Export CSV</button>
+        <button type="button" class="secondary-btn" id="printYear">Print / Save PDF</button>
+        <button type="button" class="secondary-btn" id="downloadYearHtml">Download report</button>
+      </div>
+      <div id="historyContent"></div>`;
+    $('#historyYear').addEventListener('change', event => {
+      state.settings.historyYear = Number(event.target.value);
+      persistState({render:false});
+      paintHistory(state.settings.historyYear);
+    });
+    $('#exportYear').addEventListener('click', exportYearCsv);
+    $('#printYear').addEventListener('click', printYearReport);
+    $('#downloadYearHtml').addEventListener('click', downloadYearReport);
+    paintHistory(selected);
+  }
+
+  function paintHistory(year) {
+    const summary = summariseYear(Number(year));
+    const categories = [...summary.byCategory.entries()].sort((a,b) => b[1].actual - a[1].actual);
+    const maxCategory = Math.max(1, ...categories.map(([,value]) => value.actual));
+    const newestRows = [...summary.rows].sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt));
+    $('#historyContent').innerHTML = `
+      <div class="stats"><div class="stat"><strong>${(summary.totalMinutes / 60).toFixed(summary.totalMinutes % 60 ? 1 : 0)}</strong><span>actual hours</span></div><div class="stat"><strong>${(summary.plannedMinutes / 60).toFixed(summary.plannedMinutes % 60 ? 1 : 0)}</strong><span>planned hours</span></div><div class="stat"><strong>${summary.rows.length}</strong><span>completed</span></div><div class="stat"><strong>${summary.snoozes}</strong><span>snoozes</span></div></div>
+      <div class="panel"><h3>Where the time went</h3>${categories.length ? categories.slice(0,8).map(([category, value]) => `<div class="breakdown-row"><span>${esc(category)}</span><div class="breakdown-track"><div class="breakdown-fill" style="width:${Math.round(value.actual / maxCategory * 100)}%"></div></div><strong>${esc(humanMinutes(value.actual))}</strong></div>`).join('') : '<p class="muted small">No time has been recorded for this year yet.</p>'}</div>
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Actual</th></tr></thead><tbody>${newestRows.length ? newestRows.map(item => `<tr><td>${esc(fmt(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${item.actualMinutes} min</td></tr>`).join('') : `<tr><td colspan="4">No completed Post-its for ${summary.year}.</td></tr>`}</tbody></table></div>`;
+  }
+
+  function renderSettingsDrawer() {
+    $('#drawerTitle').textContent = 'Settings';
+    const snapshots = readSnapshots();
+    $('#drawerBody').innerHTML = `
+      <div class="panel"><h3>Appearance</h3>
+        <div class="setting-row"><div><strong>Default Post-it colour</strong><span>Used for new reminders.</span></div><select id="defaultColor" aria-label="Default Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div>
+        <div class="setting-row"><div><strong>Post-it position</strong><span>Drag the small grip at the top, or reset it here.</span></div><button type="button" class="secondary-btn" id="centreNote">Centre Post-it</button></div>
+      </div>
+      <div class="panel"><h3>Voice capture</h3><p class="small">${speechSupported() ? 'Voice-to-text is available. The microphone starts only after you press the microphone button.' : 'This browser is not exposing voice recognition. Typing remains fully available.'}</p><p class="tiny muted">The browser controls microphone permission and speech processing.</p></div>
+      <div class="panel"><h3>Backup and restore</h3><p class="small">Backups include reminders, completion history, categories, timer information and settings.</p><div class="inline"><button type="button" class="primary-btn" id="backupBtn">Export backup</button><button type="button" class="secondary-btn" id="importBtn">Import backup</button></div></div>
+      <div class="panel"><h3>Recovery points</h3><p class="small">The app keeps up to ${CONFIG.maxSnapshots} recent local recovery points before important changes. They stay on this computer only.</p><div class="snapshot-list">${snapshots.length ? snapshots.map(snapshot => `<div class="snapshot-item"><div><strong>${esc(snapshot.reason)}</strong><span>${esc(fmt(snapshot.createdAt))}</span></div><button type="button" class="secondary-btn" data-restore-snapshot="${esc(snapshot.id)}">Restore</button></div>`).join('') : '<div class="muted small">No recovery points yet.</div>'}</div></div>
+      <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> delay the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
+      <div class="panel"><h3>Data safety</h3><p class="small">A yearly CSV and printable report are available under Time and history.</p><button type="button" class="danger-btn" id="resetBtn">Reset all data</button></div>
+      <div class="panel"><h3>About V3</h3><p class="small">A self-contained, offline-first Post-it reminder prototype designed to become the interface of the later Windows app.</p></div>`;
+    $('#defaultColor').value = validColour(state.settings.defaultColor);
+    $('#defaultColor').addEventListener('change', event => {
+      state.settings.defaultColor = validColour(event.target.value);
+      persistState();
+      toast('Default colour saved.');
+    });
+    $('#centreNote').addEventListener('click', centreNote);
+    $('#backupBtn').addEventListener('click', exportBackup);
+    $('#importBtn').addEventListener('click', () => $('#importFile').click());
+    $('#resetBtn').addEventListener('click', resetAll);
+    $$('[data-restore-snapshot]').forEach(button => button.addEventListener('click', () => restoreSnapshot(button.dataset.restoreSnapshot)));
+  }
+
+  function restoreSnapshot(snapshotId) {
+    const snapshot = readSnapshots().find(item => item.id === snapshotId);
+    if (!snapshot || !window.confirm(`Restore the recovery point from ${fmt(snapshot.createdAt)}? Your current state will be saved as another recovery point first.`)) return;
+    saveRecoverySnapshot(state, 'Before restoring a recovery point');
+    state = migrateState(snapshot.state).state;
+    persistState();
+    closeDrawer();
+    toast('Recovery point restored.');
+  }
+
+  function resetAll() {
+    if (!window.confirm('Reset all reminders, history and settings? A local recovery point will be kept, but exporting a backup first is safest.')) return;
+    if (!window.confirm('This will clear the current app data. Continue?')) return;
+    saveRecoverySnapshot(state, 'Before resetting all data');
+    state = defaultState();
+    persistState();
+    closeDrawer();
+    centreNote();
+    toast('All current data was reset.');
+  }
+
+  function speechSupported() {
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+
+  function toggleVoice() {
+    if (ui.recognition) {
+      stopRecognition();
+      return;
+    }
+    startVoiceRecognition();
+  }
+
+  function startVoiceRecognition() {
+    if (!speechSupported()) {
+      toast('Voice recognition is not available in this browser.');
+      return;
+    }
+    const textarea = $('#quickText');
+    if (!textarea) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    ui.recognition = recognition;
+    ui.voiceBase = textarea.value.trim();
+    recognition.lang = 'en-NZ';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    $('#quickMic').classList.add('mic-live');
+    $('#voiceStatus').textContent = 'Listening... Tap again to stop.';
+
+    recognition.onresult = event => {
+      let finalText = '';
+      let interimText = '';
+      for (let index = 0; index < event.results.length; index += 1) {
+        const transcript = event.results[index][0].transcript;
+        if (event.results[index].isFinal) finalText += transcript;
+        else interimText += transcript;
+      }
+      const dictated = `${finalText}${interimText}`.trim();
+      textarea.value = [ui.voiceBase, dictated].filter(Boolean).join(ui.voiceBase && dictated ? ' ' : '');
+      ui.captureDirty = true;
+    };
+    let voiceErrorMessage = '';
+    recognition.onerror = event => {
+      voiceErrorMessage = event.error === 'not-allowed'
+        ? 'Microphone permission was not granted. You can keep typing, or change the browser microphone permission.'
+        : `Voice recognition stopped: ${event.error}.`;
+      $('#voiceStatus').textContent = voiceErrorMessage;
+      toast(voiceErrorMessage, 3800);
+    };
+    recognition.onend = () => {
+      $('#quickMic')?.classList.remove('mic-live');
+      if ($('#voiceStatus')) $('#voiceStatus').textContent = voiceErrorMessage || (textarea.value.trim() ? 'Dictation added. Tap the microphone to add more.' : 'Tap the microphone to dictate.');
+      ui.recognition = null;
+      ui.voiceBase = textarea.value.trim();
+    };
+    try {
+      recognition.start();
+    } catch (error) {
+      console.warn('Could not start speech recognition:', error?.name || 'unknown error');
+      ui.recognition = null;
+      $('#quickMic').classList.remove('mic-live');
+      $('#voiceStatus').textContent = 'The microphone could not start. Typing still works.';
+    }
+  }
+
+  function stopRecognition() {
+    if (ui.recognition) {
+      const recognition = ui.recognition;
+      ui.recognition = null;
+      try { recognition.abort(); } catch (error) { console.warn('Speech recognition could not stop cleanly:', error?.name || 'unknown error'); }
+    }
+    $$('.mic-live').forEach(element => element.classList.remove('mic-live'));
+  }
+
+  function validateImportObject(parsed) {
+    const candidate = parsed && typeof parsed === 'object' && parsed.state ? parsed.state : parsed;
+    if (!candidate || typeof candidate !== 'object') throw new Error('The file does not contain an app data object.');
+    if (!Array.isArray(candidate.reminders) || !Array.isArray(candidate.history)) throw new Error('The file is missing reminder or history data.');
+    if (candidate.reminders.length > CONFIG.maxReminders || candidate.history.length > CONFIG.maxHistory) throw new Error('The file contains more records than this version can safely load.');
+    return migrateState(candidate);
+  }
+
+  function exportBackup() {
+    const payload = {
+      app: 'Post-it Reminder',
+      formatVersion: CONFIG.version,
+      exportedAt: now().toISOString(),
+      state
+    };
+    downloadFile(`postit-reminder-backup-${localDate(now())}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    toast('Backup exported.');
+  }
+
+  function importBackup(file) {
+    if (!file) return;
+    if (file.size > CONFIG.maxImportBytes) {
+      window.alert('That file is too large to import safely. Choose a Post-it Reminder JSON backup smaller than 5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => window.alert('The backup file could not be read.');
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        const result = validateImportObject(parsed);
+        const note = result.repairs.length ? `\n\n${result.repairs.length} field(s) will be repaired during import.` : '';
+        if (!window.confirm(`Replace the current data with ${result.state.reminders.length} reminder(s) and ${result.state.history.length} history record(s)?${note}`)) return;
+        saveRecoverySnapshot(state, 'Before importing a backup');
+        state = result.state;
+        persistState();
+        closeDrawer();
+        toast('Backup imported.');
+      } catch (error) {
+        console.warn('Rejected backup import:', error.message);
+        window.alert(`That file could not be imported. ${error.message}`);
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function safeCsvText(value) {
+    let text = String(value ?? '');
+    if (/^[\t\r ]*[=+\-@]/.test(text)) text = `'${text}`;
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function exportYearCsv() {
+    const year = Number($('#historyYear')?.value || state.settings.historyYear || now().getFullYear());
+    const summary = summariseYear(year);
+    const rows = [
+      ['Post-it Reminder Year Report', year],
+      ['Generated', fmt(now())],
+      ['Completed occurrences', summary.rows.length],
+      ['Actual minutes', summary.totalMinutes],
+      ['Actual hours', (summary.totalMinutes / 60).toFixed(2)],
+      ['Planned minutes', summary.plannedMinutes],
+      ['Variance minutes', summary.totalMinutes - summary.plannedMinutes],
+      ['Total snoozes', summary.snoozes],
+      [],
+      ['CATEGORY SUMMARY'],
+      ['Category','Completions','Actual minutes','Actual hours','Planned minutes','Variance minutes']
+    ];
+    [...summary.byCategory.entries()].sort((a,b) => b[1].actual - a[1].actual).forEach(([category, value]) => rows.push([category, value.count, value.actual, (value.actual / 60).toFixed(2), value.planned, value.actual - value.planned]));
+    rows.push([], ['MONTHLY SUMMARY'], ['Month','Actual minutes','Actual hours']);
+    [...summary.byMonth.entries()].forEach(([month, minutes]) => rows.push([month, minutes, (minutes / 60).toFixed(2)]));
+    rows.push([], ['COMPLETION DETAIL'], ['Completed','Title','Reminder','Category','Actual minutes','Planned minutes','Variance','Repeat','Scheduled for','Completed early','Snoozes','Completion note','Timer started']);
+    summary.rows.forEach(item => rows.push([
+      fmt(item.completedAt), item.title, item.text, item.category || 'Uncategorised', item.actualMinutes, item.plannedMinutes,
+      item.actualMinutes - item.plannedMinutes, repeatLabel(item.repeat), fmt(item.scheduledFor), item.completedEarly ? 'Yes' : 'No', item.snoozeCount,
+      item.completionNote, item.timerStartedAt ? fmt(item.timerStartedAt) : ''
+    ]));
+    const csv = '\ufeff' + rows.map(row => row.map(safeCsvText).join(',')).join('\r\n');
+    downloadFile(`postit-time-report-${year}-${localDate(now())}.csv`, csv, 'text/csv;charset=utf-8');
+    toast(`${year} CSV report exported.`);
+  }
+
+  function standaloneReportStyles() {
+    return `<style>body{font-family:Segoe UI,Arial,sans-serif;color:#222;margin:32px;line-height:1.4}h1{margin-bottom:4px}.sub{color:#666;margin-top:0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{border:1px solid #bbb;border-radius:8px;padding:12px}.stat strong{font-size:24px;display:block}.stat span{font-size:12px;color:#666}table{width:100%;border-collapse:collapse;margin:12px 0 26px;font-size:12px}th,td{border:1px solid #bbb;padding:7px;text-align:left;vertical-align:top}th{background:#f1f1f1}@media(max-width:700px){body{margin:16px}.stats{grid-template-columns:1fr 1fr}table{font-size:11px}}@media print{@page{size:A4 portrait;margin:15mm}body{margin:0}.page{break-before:page}}</style>`;
+  }
+
+  function varianceLabel(actual, planned) {
+    const difference = actual - planned;
+    if (difference === 0) return 'On plan';
+    return `${humanMinutes(Math.abs(difference))} ${difference > 0 ? 'over' : 'under'}`;
+  }
+
+  function reportSectionsHtml(summary, standalone = false) {
+    const categories = [...summary.byCategory.entries()].sort((a,b) => b[1].actual - a[1].actual);
+    const months = [...summary.byMonth.entries()];
+    return `<h1 class="${standalone ? '' : 'print-title'}">Post-it Reminder: ${summary.year} time report</h1><p class="${standalone ? 'sub' : 'print-sub'}">Generated ${esc(fmt(now()))}. This report is based on completed Post-its with recorded time.</p>
+      <div class="${standalone ? 'stats' : 'print-stats'}">
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${(summary.totalMinutes / 60).toFixed(2)}</strong><span>actual hours</span></div>
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${(summary.plannedMinutes / 60).toFixed(2)}</strong><span>planned hours</span></div>
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${summary.rows.length}</strong><span>completed</span></div>
+        <div class="${standalone ? 'stat' : 'print-stat'}"><strong>${summary.snoozes}</strong><span>snoozes</span></div>
+      </div>
+      <section class="${standalone ? '' : 'print-section'}"><h2>Category summary</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Category</th><th>Completed</th><th>Actual</th><th>Planned</th><th>Variance</th></tr></thead><tbody>${categories.length ? categories.map(([category,value]) => `<tr><td>${esc(category)}</td><td>${value.count}</td><td>${esc(humanMinutes(value.actual))}</td><td>${esc(humanMinutes(value.planned))}</td><td>${esc(varianceLabel(value.actual, value.planned))}</td></tr>`).join('') : '<tr><td colspan="5">No completed Post-its.</td></tr>'}</tbody></table></section>
+      <section class="${standalone ? '' : 'print-section'}"><h2>Monthly totals</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Month</th><th>Time</th></tr></thead><tbody>${months.length ? months.map(([month,minutes]) => `<tr><td>${esc(month)}</td><td>${esc(humanMinutes(minutes))}</td></tr>`).join('') : '<tr><td colspan="2">No recorded time.</td></tr>'}</tbody></table></section>
+      <section class="${standalone ? 'page' : 'print-section print-page-break'}"><h2>Completion detail</h2><table class="${standalone ? '' : 'print-table'}"><thead><tr><th>Completed</th><th>Post-it</th><th>Category</th><th>Actual</th><th>Planned</th></tr></thead><tbody>${summary.rows.length ? summary.rows.map(item => `<tr><td>${esc(fmtDateOnly(item.completedAt))}</td><td><strong>${esc(item.title || 'Post-it')}</strong><br>${esc(item.text)}</td><td>${esc(item.category || 'Uncategorised')}</td><td>${item.actualMinutes} min</td><td>${item.plannedMinutes} min</td></tr>`).join('') : '<tr><td colspan="5">No completed Post-its.</td></tr>'}</tbody></table></section>`;
+  }
+
+  function printYearReport() {
+    const year = Number($('#historyYear')?.value || state.settings.historyYear || now().getFullYear());
+    const summary = summariseYear(year);
+    $('#printArea').innerHTML = reportSectionsHtml(summary, false);
+    $('#printArea').setAttribute('aria-hidden', 'false');
+    const oldTitle = document.title;
+    document.title = `Post-it Reminder ${year} time report`;
+    try {
+      window.print();
+    } catch (error) {
+      console.warn('Print dialog unavailable:', error?.name || 'unknown error');
+      toast('The print dialog could not open. Download the HTML report instead.');
+    }
+    window.setTimeout(() => {
+      document.title = oldTitle;
+      $('#printArea').setAttribute('aria-hidden', 'true');
+    }, 1000);
+  }
+
+  function downloadYearReport() {
+    const year = Number($('#historyYear')?.value || state.settings.historyYear || now().getFullYear());
+    const summary = summariseYear(year);
+    const html = `<!doctype html><html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Post-it Reminder ${year} report</title>${standaloneReportStyles()}</head><body>${reportSectionsHtml(summary, true)}</body></html>`;
+    downloadFile(`postit-year-report-${year}-${localDate(now())}.html`, html, 'text/html;charset=utf-8');
+    toast(`${year} printable report downloaded.`);
+  }
+
+  function downloadFile(name, content, type) {
+    try {
+      const blob = new Blob([content], {type});
+      const anchor = document.createElement('a');
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = name.replace(/[\\/:*?"<>|]/g, '-');
+      document.body.appendChild(anchor);
+      anchor.click();
+      window.setTimeout(() => {
+        URL.revokeObjectURL(anchor.href);
+        anchor.remove();
+      }, 1000);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast('The file could not be downloaded in this browser.');
+    }
+  }
+
+  function openDialog(dialog, opener = document.activeElement) {
+    if (!dialog || dialog.open) return;
+    ui.dialogOpener = opener;
+    try {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    } catch (error) {
+      console.warn('Dialog could not open normally:', error?.name || 'unknown error');
+      dialog.setAttribute('open', '');
+    }
+  }
+
+  function closeDialog(dialog, force = false) {
+    if (dialog.id === 'editDialog' && !force && ui.editInitial && editFormSignature() !== ui.editInitial) {
+      if (!window.confirm('Discard unsaved changes?')) return false;
+    }
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+    return true;
+  }
+
+  function renderAll() {
+    updateStorageBanner();
+    renderPostit();
+    updateCategorySuggestions();
+    if ($('#drawer').classList.contains('open') && ui.drawerType) renderDrawer(ui.drawerType);
+    placeNote();
+  }
+
+  function noteBounds() {
+    const wrap = $('#floatWrap');
+    return {width: wrap.offsetWidth, height: wrap.offsetHeight};
+  }
+
+  function clampPosition(left, top) {
+    const bounds = noteBounds();
+    const small = window.innerWidth <= 680;
+    const minTop = small ? 62 : 12;
+    const maxLeft = Math.max(8, window.innerWidth - bounds.width - 8);
+    const maxTop = Math.max(minTop, window.innerHeight - bounds.height - 8);
+    return {left: clamp(left, 8, maxLeft), top: clamp(top, minTop, maxTop)};
+  }
+
+  function defaultPosition() {
+    const bounds = noteBounds();
+    const small = window.innerWidth <= 680;
+    return clampPosition((window.innerWidth - bounds.width) / 2, small ? 62 : (window.innerHeight - bounds.height) / 2);
+  }
+
+  function placeNote() {
+    const wrap = $('#floatWrap');
+    const requested = state.settings.notePosition;
+    const position = requested ? clampPosition(Number(requested.left), Number(requested.top)) : defaultPosition();
+    wrap.style.left = `${Math.round(position.left)}px`;
+    wrap.style.top = `${Math.round(position.top)}px`;
+    if (requested && (position.left !== requested.left || position.top !== requested.top)) {
+      state.settings.notePosition = position;
+      persistState({render:false});
+    }
+    updateToolSide(position.left, wrap.offsetWidth);
+  }
+
+  function updateToolSide(left, width) {
+    const wrap = $('#floatWrap');
+    if (window.innerWidth <= 680) {
+      wrap.classList.remove('tools-right');
+      return;
+    }
+    const leftSpace = left;
+    const rightSpace = window.innerWidth - (left + width);
+    wrap.classList.toggle('tools-right', leftSpace < 82 && rightSpace > leftSpace);
+  }
+
+  function centreNote() {
+    state.settings.notePosition = null;
+    persistState({render:false});
+    placeNote();
+    toast('Post-it centred.');
+  }
+
+  function beginDrag(event) {
+    if (event.button !== undefined && event.button !== 0) return;
+    const wrap = $('#floatWrap');
+    const rect = wrap.getBoundingClientRect();
+    ui.dragging = {pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, left: rect.left, top: rect.top};
+    wrap.classList.add('dragging');
+    $('#dragHandle').setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function moveDrag(event) {
+    if (!ui.dragging || event.pointerId !== ui.dragging.pointerId) return;
+    const next = clampPosition(ui.dragging.left + event.clientX - ui.dragging.startX, ui.dragging.top + event.clientY - ui.dragging.startY);
+    const wrap = $('#floatWrap');
+    wrap.style.left = `${Math.round(next.left)}px`;
+    wrap.style.top = `${Math.round(next.top)}px`;
+    updateToolSide(next.left, wrap.offsetWidth);
+  }
+
+  function endDrag(event) {
+    if (!ui.dragging || event.pointerId !== ui.dragging.pointerId) return;
+    const wrap = $('#floatWrap');
+    const rect = wrap.getBoundingClientRect();
+    state.settings.notePosition = clampPosition(rect.left, rect.top);
+    ui.dragging = null;
+    wrap.classList.remove('dragging');
+    persistState({render:false});
+    announce('Post-it position saved.');
+  }
+
+  function moveNoteWithKeyboard(event) {
+    if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Home') {
+      centreNote();
+      return;
+    }
+    const rect = $('#floatWrap').getBoundingClientRect();
+    const step = event.shiftKey ? 24 : 6;
+    const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+    const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+    state.settings.notePosition = clampPosition(rect.left + dx, rect.top + dy);
+    persistState({render:false});
+    placeNote();
+  }
+
+  function trapDrawerFocus(event) {
+    if (event.key !== 'Tab' || !$('#drawer').classList.contains('open')) return;
+    const focusable = $$(`#drawer button:not([disabled]), #drawer input:not([disabled]), #drawer select:not([disabled]), #drawer textarea:not([disabled]), #drawer [href], #drawer [tabindex]:not([tabindex="-1"])`)
+      .filter(element => element.offsetParent !== null);
+    if (!focusable.length) {
+      event.preventDefault();
+      $('#drawerClose').focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function setToolRailOpen(open, {pinned = false, returnFocus = false} = {}) {
+    const wrap = $('#floatWrap');
+    const tab = $('#edgeTab');
+    const rail = $('#toolRail');
+    ui.railPinned = Boolean(open && pinned);
+    wrap.classList.toggle('rail-open', Boolean(open));
+    tab.setAttribute('aria-expanded', String(Boolean(open)));
+    tab.setAttribute('aria-label', open ? 'Close tools' : 'Open tools');
+    rail.setAttribute('aria-hidden', String(!open));
+    $$('#toolRail button').forEach(button => { button.tabIndex = open ? 0 : -1; });
+    if (!open && returnFocus && document.activeElement && rail.contains(document.activeElement)) {
+      ui.suppressRailFocusOpen = true;
+      tab.focus();
+      ui.suppressRailFocusOpen = false;
+    }
+  }
+
+  function handleGlobalKeyboard(event) {
+    const activeElement = document.activeElement;
+    const activeTag = activeElement?.tagName;
+    const interactive = ['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(activeTag) || activeElement?.isContentEditable;
+    if (event.key === 'Escape') {
+      if ($$('dialog[open]').length) return;
+      if ($('#drawer').classList.contains('open')) {
+        event.preventDefault();
+        closeDrawer();
+      } else if (ui.mode === 'create') {
+        event.preventDefault();
+        cancelCapture();
+      } else if ($('#floatWrap').classList.contains('rail-open')) {
+        event.preventDefault();
+        setToolRailOpen(false, {returnFocus:true});
+      }
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || interactive || $$('dialog[open]').length || $('#drawer').classList.contains('open')) return;
+    if (event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      startCapture();
+    } else if (event.key.toLowerCase() === 'm') {
+      event.preventDefault();
+      startCapture({voiceReady:true});
+    } else if (event.key.toLowerCase() === 'd' && ui.currentReminderId && dueList().some(item => item.id === ui.currentReminderId)) {
+      event.preventDefault();
+      openSnooze(ui.currentReminderId, document.activeElement);
+    } else if (event.key === 'Enter' && ui.currentReminderId && dueList().some(item => item.id === ui.currentReminderId)) {
+      event.preventDefault();
+      openDone(ui.currentReminderId, document.activeElement);
+    }
+  }
+
+  function bindStaticEvents() {
+    $('#edgeTab').addEventListener('pointerenter', () => {
+      if (!$('#floatWrap').classList.contains('rail-open')) setToolRailOpen(true);
+    });
+    $('#edgeTab').addEventListener('focus', () => { if (!ui.suppressRailFocusOpen) setToolRailOpen(true); });
+    $('#edgeTab').addEventListener('click', () => {
+      const currentlyOpen = $('#floatWrap').classList.contains('rail-open');
+      if (currentlyOpen && ui.railPinned) setToolRailOpen(false, {returnFocus:true});
+      else setToolRailOpen(true, {pinned:true});
+    });
+    $('#floatWrap').addEventListener('pointerleave', () => {
+      if (!ui.railPinned && !$('#floatWrap').contains(document.activeElement)) setToolRailOpen(false);
+    });
+    $('#floatWrap').addEventListener('focusout', () => window.setTimeout(() => {
+      if (!$('#floatWrap').contains(document.activeElement)) setToolRailOpen(false);
+    }, 0));
+    $('#newBtn').addEventListener('click', () => {
+      setToolRailOpen(false);
+      startCapture();
+    });
+    $('#voiceBtn').addEventListener('click', () => {
+      setToolRailOpen(false);
+      startCapture({voiceReady:true});
+    });
+    const openToolDrawer = (type, button) => {
+      setToolRailOpen(false);
+      openDrawer(type, button);
+    };
+    $('#listBtn').addEventListener('click', event => openToolDrawer('notes', event.currentTarget));
+    $('#historyBtn').addEventListener('click', event => openToolDrawer('history', event.currentTarget));
+    $('#settingsBtn').addEventListener('click', event => openToolDrawer('settings', event.currentTarget));
+    $('#drawerClose').addEventListener('click', () => closeDrawer());
+    $('#drawerShade').addEventListener('click', () => closeDrawer());
+    $('#saveEditBtn').addEventListener('click', saveEdit);
+    $('#deleteEditBtn').addEventListener('click', deleteCurrentEdit);
+    $('#completeBtn').addEventListener('click', completeReminder);
+    $('#customSnoozeBtn').addEventListener('click', applyCustomSnooze);
+    $('#importFile').addEventListener('change', event => {
+      importBackup(event.target.files[0]);
+      event.target.value = '';
+    });
+    $('#undoBtn').addEventListener('click', undoLastAction);
+    $('#undoClose').addEventListener('click', hideUndo);
+    $('#storageBannerClose').addEventListener('click', () => {
+      ui.bannerDismissed = true;
+      updateStorageBanner();
+    });
+    $$('[data-close]').forEach(button => button.addEventListener('click', () => closeDialog($(`#${button.dataset.close}`))));
+    $$('[data-snooze]').forEach(button => button.addEventListener('click', () => applySnooze(button.dataset.snooze)));
+    $$('#timeGrid [data-minutes]').forEach(button => button.addEventListener('click', () => selectDoneMinutes(button.dataset.minutes)));
+    ['editDate','editTime','editRepeat'].forEach(id => $(`#${id}`).addEventListener('input', updateEditSchedulePreview));
+    $('#dragHandle').addEventListener('pointerdown', beginDrag);
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    $('#dragHandle').addEventListener('keydown', moveNoteWithKeyboard);
+    window.addEventListener('resize', placeNote);
+    document.addEventListener('keydown', handleGlobalKeyboard);
+    $('#drawer').addEventListener('keydown', trapDrawerFocus);
+    document.addEventListener('pointerdown', event => {
+      if (!$('#floatWrap').contains(event.target)) setToolRailOpen(false);
+    });
+    $('#editDialog').addEventListener('cancel', event => {
+      if (ui.editInitial && editFormSignature() !== ui.editInitial && !window.confirm('Discard unsaved changes?')) event.preventDefault();
+    });
+    $$('dialog').forEach(dialog => dialog.addEventListener('close', () => {
+      const returnTarget = ui.dialogOpener;
+      ui.dialogOpener = null;
+      if (returnTarget?.isConnected) returnTarget.focus();
+      else if ($('#drawer').classList.contains('open')) $('#drawerClose').focus();
+      else $('#edgeTab').focus();
+    }));
+    window.addEventListener('beforeprint', () => $('#printArea').setAttribute('aria-hidden', 'false'));
+    window.addEventListener('afterprint', () => $('#printArea').setAttribute('aria-hidden', 'true'));
+    window.addEventListener('error', event => {
+      console.error('Unexpected Post-it Reminder error:', event.error || event.message);
+      toast('Something unexpected happened. Your saved data has been left intact.', 4000);
+    });
+    window.addEventListener('unhandledrejection', event => {
+      console.error('Unhandled Post-it Reminder promise error:', event.reason);
+      toast('An unexpected browser operation failed. Your saved data has been left intact.', 4000);
+    });
+  }
+
+  bindStaticEvents();
+  setToolRailOpen(false);
+  if (!storageInfo.loadFailed) persistState({render:false});
+  renderAll();
+  setInterval(() => {
+    if (ui.mode === 'current' && !$$('dialog[open]').length) renderPostit();
+  }, 30000);
+})();
+</script>
+
+<script>
+(() => {
+  'use strict';
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js', {scope: './'})
+      .catch(error => console.warn('Post-it Reminder service worker could not be registered:', error));
+  });
+})();
+</script>
+</body>
+</html>
