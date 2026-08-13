@@ -188,65 +188,37 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: 0 0 0 1px rgba(255,255,255,0.16);
 }
 
-.edge-tab {
+.top-tools {
   position: absolute;
-  left: -26px;
-  top: 58px;
-  z-index: 5;
+  z-index: 7;
+  top: 31px;
+  right: 68px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+}
+.rail-btn {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 78px;
+  flex: 0 0 auto;
+  width: 27px;
+  height: 27px;
   border: 0;
-  border-radius: 11px 0 0 11px;
-  background: #484740;
-  color: #fff;
-  box-shadow: -5px 7px 16px rgba(0,0,0,0.15);
-  transition: left 0.18s ease, right 0.18s ease, background 0.15s ease;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  color: rgba(45,43,35,0.76);
+  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
 }
-.edge-tab:hover { background: #2f302c; }
-.edge-tab span {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+.rail-btn:hover,
+.rail-btn:focus-visible {
+  background: rgba(255,255,255,0.62);
+  color: var(--ink);
+  transform: translateY(-1px);
 }
-.tool-rail {
-  position: absolute;
-  left: -87px;
-  top: 43px;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 9px;
-  border: 1px solid rgba(68,61,46,0.14);
-  border-radius: 14px;
-  background: rgba(255,253,247,0.98);
-  box-shadow: var(--soft-shadow);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(60px);
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-.float-wrap.rail-open .tool-rail {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-.float-wrap.tools-right .edge-tab {
-  left: auto;
-  right: -26px;
-  border-radius: 0 11px 11px 0;
-}
-.float-wrap.tools-right .tool-rail {
-  left: auto;
-  right: -87px;
-  transform: translateX(-60px);
-}
-.float-wrap.tools-right.rail-open .tool-rail { transform: translateX(0); }
-.rail-btn, .round-btn, .icon-btn {
+.rail-btn svg { width: 15px; height: 15px; stroke: currentColor; }
+.round-btn, .icon-btn {
   position: relative;
   display: grid;
   place-items: center;
@@ -259,17 +231,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: 0 1px 0 rgba(255,255,255,0.68) inset;
   transition: transform 0.14s ease, background 0.14s ease;
 }
-.rail-btn:hover, .round-btn:hover, .icon-btn:hover { transform: translateY(-1px); background: #fff; }
-.rail-btn svg, .round-btn svg, .icon-btn svg { width: 21px; height: 21px; stroke: currentColor; }
+.round-btn:hover, .icon-btn:hover { transform: translateY(-1px); background: #fff; }
+.round-btn svg, .icon-btn svg { width: 21px; height: 21px; stroke: currentColor; }
 [data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
+  left: 50%;
+  top: calc(100% + 7px);
   z-index: 100;
   width: max-content;
   max-width: 210px;
-  transform: translateY(-50%) translateX(-4px);
+  transform: translateX(-50%) translateY(-3px);
   padding: 6px 8px;
   border-radius: 7px;
   background: #24241f;
@@ -282,9 +254,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
   opacity: 1;
-  transform: translateY(-50%) translateX(0);
+  transform: translateX(-50%) translateY(0);
 }
-.tools-right [data-tooltip]::after { left: auto; right: calc(100% + 10px); }
 .mic-live {
   color: var(--danger);
   background: #fff3f1 !important;
@@ -296,9 +267,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   min-height: 36px;
 }
+.note-head .chip { max-width: calc(100% - 195px); }
 .chip {
   display: inline-flex;
   align-items: center;
@@ -734,24 +706,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   }
   .float-wrap.capture-mode { height: calc(100dvh - 62px); }
   .postit { padding: 25px 20px 19px; }
-  .edge-tab, .float-wrap.tools-right .edge-tab {
-    left: auto;
-    right: 8px;
-    top: -29px;
-    width: 78px;
-    height: 31px;
-    border-radius: 10px 10px 0 0;
-  }
-  .edge-tab span { writing-mode: horizontal-tb; transform: none; }
-  .tool-rail, .float-wrap.tools-right .tool-rail {
-    left: auto;
-    right: 0;
-    top: -61px;
-    flex-direction: row;
-    transform: translateY(34px);
-  }
-  .float-wrap.rail-open .tool-rail,
-  .float-wrap.tools-right.rail-open .tool-rail { transform: translateY(0); }
+  .top-tools { top: 27px; right: 58px; gap: 1px; }
+  .rail-btn { width: 27px; height: 27px; }
+  .rail-btn svg { width: 15px; height: 15px; }
+  .note-head .chip { max-width: calc(100% - 185px); }
   [data-tooltip]::after { display: none; }
   .preset-grid { grid-template-columns: 1fr 1fr; }
   .schedule-row { grid-template-columns: 1fr 0.8fr; }
@@ -787,12 +745,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   <section class="float-wrap" id="floatWrap" aria-label="Floating Post-it">
     <div class="back-note" aria-hidden="true"></div>
     <div class="back-note two" aria-hidden="true"></div>
-    <button type="button" class="edge-tab" id="edgeTab" aria-label="Open tools" aria-expanded="false" aria-controls="toolRail"><span>TOOLS</span></button>
-    <nav class="tool-rail" id="toolRail" aria-label="Post-it tools" aria-hidden="true">
+    <nav class="top-tools" id="topTools" aria-label="Post-it tools">
       <button type="button" class="rail-btn" id="newBtn" aria-label="New Post-it" data-tooltip="New Post-it">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
-      <button type="button" class="rail-btn" id="voiceBtn" aria-label="Open voice capture" data-tooltip="Voice capture">
+      <button type="button" class="rail-btn" id="voiceBtn" aria-label="Voice capture" data-tooltip="Voice capture">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>
       </button>
       <button type="button" class="rail-btn" id="listBtn" aria-label="All Post-its" data-tooltip="All Post-its">
@@ -902,7 +859,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const STORAGE_SCOPE = location.pathname.replace(/\/index\.html$/i, '/').split('/').filter(Boolean).join('_') || 'root';
 
   const CONFIG = Object.freeze({
-    version: 3.3,
+    version: 3.4,
     storageKey: `postitReminderStateV3:${STORAGE_SCOPE}`,
     legacyStorageKey: 'postitReminderV1',
     snapshotKey: `postitReminderSnapshotsV3:${STORAGE_SCOPE}`,
@@ -1008,9 +965,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     captureDirty: false,
     selectedPreset: 'later',
     dragging: null,
-    bannerDismissed: false,
-    railPinned: false,
-    suppressRailFocusOpen: false
+    bannerDismissed: false
   };
 
   function defaultState() {
@@ -1194,7 +1149,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const result = migrateState(parsed);
       storageInfo.repairs = result.repairs.length;
       if (result.repairs.length) {
-        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.3.`;
+        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.4.`;
       }
       return result.state;
     } catch (error) {
@@ -2534,7 +2489,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="panel"><h3>Recovery points</h3><p class="small">The app keeps up to ${CONFIG.maxSnapshots} recent local recovery points before important changes. They stay on this computer only.</p><div class="snapshot-list">${snapshots.length ? snapshots.map(snapshot => `<div class="snapshot-item"><div><strong>${esc(snapshot.reason)}</strong><span>${esc(fmt(snapshot.createdAt))}</span></div><button type="button" class="secondary-btn" data-restore-snapshot="${esc(snapshot.id)}">Restore</button></div>`).join('') : '<div class="muted small">No recovery points yet.</div>'}</div></div>
       <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> open Later options for the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
       <div class="panel"><h3>Data safety</h3><p class="small">A yearly CSV and printable report are available under Time and history.</p><button type="button" class="danger-btn" id="resetBtn">Reset all data</button></div>
-      <div class="panel"><h3>About V3.3</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, a due queue, progressive attention, and year-end activity reporting.</p></div>`;
+      <div class="panel"><h3>About V3.4</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, a due queue, progressive attention, compact top tools, and year-end activity reporting.</p></div>`;
     $('#defaultColor').value = validColour(state.settings.defaultColor);
     $('#defaultColor').addEventListener('change', event => {
       state.settings.defaultColor = validColour(event.target.value);
@@ -2862,18 +2817,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       state.settings.notePosition = position;
       persistState({render:false});
     }
-    updateToolSide(position.left, wrap.offsetWidth);
-  }
-
-  function updateToolSide(left, width) {
-    const wrap = $('#floatWrap');
-    if (window.innerWidth <= 680) {
-      wrap.classList.remove('tools-right');
-      return;
-    }
-    const leftSpace = left;
-    const rightSpace = window.innerWidth - (left + width);
-    wrap.classList.toggle('tools-right', leftSpace < 82 && rightSpace > leftSpace);
   }
 
   function centreNote() {
@@ -2899,7 +2842,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const wrap = $('#floatWrap');
     wrap.style.left = `${Math.round(next.left)}px`;
     wrap.style.top = `${Math.round(next.top)}px`;
-    updateToolSide(next.left, wrap.offsetWidth);
   }
 
   function endDrag(event) {
@@ -2949,23 +2891,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     }
   }
 
-  function setToolRailOpen(open, {pinned = false, returnFocus = false} = {}) {
-    const wrap = $('#floatWrap');
-    const tab = $('#edgeTab');
-    const rail = $('#toolRail');
-    ui.railPinned = Boolean(open && pinned);
-    wrap.classList.toggle('rail-open', Boolean(open));
-    tab.setAttribute('aria-expanded', String(Boolean(open)));
-    tab.setAttribute('aria-label', open ? 'Close tools' : 'Open tools');
-    rail.setAttribute('aria-hidden', String(!open));
-    $$('#toolRail button').forEach(button => { button.tabIndex = open ? 0 : -1; });
-    if (!open && returnFocus && document.activeElement && rail.contains(document.activeElement)) {
-      ui.suppressRailFocusOpen = true;
-      tab.focus();
-      ui.suppressRailFocusOpen = false;
-    }
-  }
-
   function handleGlobalKeyboard(event) {
     const activeElement = document.activeElement;
     const activeTag = activeElement?.tagName;
@@ -2978,9 +2903,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       } else if (ui.mode === 'create') {
         event.preventDefault();
         cancelCapture();
-      } else if ($('#floatWrap').classList.contains('rail-open')) {
-        event.preventDefault();
-        setToolRailOpen(false, {returnFocus:true});
       }
       return;
     }
@@ -3001,36 +2923,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   }
 
   function bindStaticEvents() {
-    $('#edgeTab').addEventListener('pointerenter', () => {
-      if (!$('#floatWrap').classList.contains('rail-open')) setToolRailOpen(true);
-    });
-    $('#edgeTab').addEventListener('focus', () => { if (!ui.suppressRailFocusOpen) setToolRailOpen(true); });
-    $('#edgeTab').addEventListener('click', () => {
-      const currentlyOpen = $('#floatWrap').classList.contains('rail-open');
-      if (currentlyOpen && ui.railPinned) setToolRailOpen(false, {returnFocus:true});
-      else setToolRailOpen(true, {pinned:true});
-    });
-    $('#floatWrap').addEventListener('pointerleave', () => {
-      if (!ui.railPinned && !$('#floatWrap').contains(document.activeElement)) setToolRailOpen(false);
-    });
-    $('#floatWrap').addEventListener('focusout', () => window.setTimeout(() => {
-      if (!$('#floatWrap').contains(document.activeElement)) setToolRailOpen(false);
-    }, 0));
-    $('#newBtn').addEventListener('click', () => {
-      setToolRailOpen(false);
-      startCapture();
-    });
-    $('#voiceBtn').addEventListener('click', () => {
-      setToolRailOpen(false);
-      startCapture({voiceReady:true});
-    });
-    const openToolDrawer = (type, button) => {
-      setToolRailOpen(false);
-      openDrawer(type, button);
-    };
-    $('#listBtn').addEventListener('click', event => openToolDrawer('notes', event.currentTarget));
-    $('#historyBtn').addEventListener('click', event => openToolDrawer('history', event.currentTarget));
-    $('#settingsBtn').addEventListener('click', event => openToolDrawer('settings', event.currentTarget));
+    $('#newBtn').addEventListener('click', () => startCapture());
+    $('#voiceBtn').addEventListener('click', () => startCapture({voiceReady:true}));
+    $('#listBtn').addEventListener('click', event => openDrawer('notes', event.currentTarget));
+    $('#historyBtn').addEventListener('click', event => openDrawer('history', event.currentTarget));
+    $('#settingsBtn').addEventListener('click', event => openDrawer('settings', event.currentTarget));
     $('#drawerClose').addEventListener('click', () => closeDrawer());
     $('#drawerShade').addEventListener('click', () => closeDrawer());
     $('#saveEditBtn').addEventListener('click', saveEdit);
@@ -3062,9 +2959,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     window.addEventListener('resize', placeNote);
     document.addEventListener('keydown', handleGlobalKeyboard);
     $('#drawer').addEventListener('keydown', trapDrawerFocus);
-    document.addEventListener('pointerdown', event => {
-      if (!$('#floatWrap').contains(event.target)) setToolRailOpen(false);
-    });
     $('#editDialog').addEventListener('cancel', event => {
       if (ui.editInitial && editFormSignature() !== ui.editInitial && !window.confirm('Discard unsaved changes?')) event.preventDefault();
     });
@@ -3073,7 +2967,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       ui.dialogOpener = null;
       if (returnTarget?.isConnected) returnTarget.focus();
       else if ($('#drawer').classList.contains('open')) $('#drawerClose').focus();
-      else $('#edgeTab').focus();
+      else $('#newBtn')?.focus();
     }));
     window.addEventListener('beforeprint', () => $('#printArea').setAttribute('aria-hidden', 'false'));
     window.addEventListener('afterprint', () => $('#printArea').setAttribute('aria-hidden', 'true'));
@@ -3089,7 +2983,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
   async function initialiseApp() {
     bindStaticEvents();
-    setToolRailOpen(false);
     await bootstrapDurableStorage();
     if (!storageInfo.loadFailed || storageInfo.recoveredFromDurable) persistState({render:false});
     updateStorageBanner();

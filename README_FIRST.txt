@@ -1,12 +1,14 @@
-POST-IT REMINDER V3.3 - QUEUE + PROGRESSIVE ATTENTION PWA
+POST-IT REMINDER V3.4 - COMPACT TOP TOOLS PWA
 ===========================================================
 
 WHAT CHANGED
 ------------
-V3.3 keeps V3.2's durable automatic saving and flexible repeat cycles, and adds a
-clearer way to handle reminders you are not ready to do yet.
+V3.4 keeps V3.3's durable saving, flexible repeats, queue and attention system.
+The pop-out TOOLS rail has been removed. New, voice, all Post-its, history, and
+settings are now small always-visible icons across the top of the Post-it beside the
+three-dot reminder menu. The underlying reminder behaviour is unchanged.
 
-The main due-note action is now LATER. It opens these choices:
+The main due-note action remains LATER. It opens these choices:
 
 - Back of queue
   Keeps the reminder due and keeps its real scheduled date unchanged, but moves it
@@ -47,7 +49,7 @@ information.
 
 DATA COMPATIBILITY
 ------------------
-V3.3 intentionally uses the SAME storage namespace as V3.1/V3.2 on the same GitHub
+V3.4 intentionally uses the SAME storage namespace as V3.1/V3.2/V3.3 on the same GitHub
 Pages path. Existing reminders and completion history migrate automatically. New
 fields default safely to zero/empty values, and old backups remain importable.
 
