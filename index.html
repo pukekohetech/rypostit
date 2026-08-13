@@ -382,6 +382,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+.note-actions > .upnext-icon-actions { grid-column: 1 / -1; }
 .action {
   min-height: 50px;
   border: 1px solid rgba(48,43,32,0.21);
@@ -393,6 +394,48 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .action:hover { transform: translateY(-1px); background: rgba(255,255,255,0.84); }
 .action.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+.upnext-icon-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+.note-icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(53,48,36,0.16);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.36);
+  color: rgba(45,43,35,0.82);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.42) inset;
+  transition: transform 0.14s ease, background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+.note-icon-btn:hover,
+.note-icon-btn:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.72);
+  color: var(--ink);
+  box-shadow: 0 3px 10px rgba(55,48,32,0.10);
+}
+.note-icon-btn svg { width: 18px; height: 18px; }
+.note-icon-btn.delay svg { width: 17px; height: 17px; }
+.note-icon-btn.skip svg { width: 19px; height: 19px; }
+.note-icon-btn.unavailable { opacity: 0.46; }
+.note-icon-btn[data-tooltip]::after {
+  top: auto;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%) translateY(3px);
+}
+.note-icon-btn[data-tooltip]:hover::after,
+.note-icon-btn[data-tooltip]:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
 .action.primary:hover { background: var(--accent-hover); }
 .action.ghost { background: rgba(255,255,255,0.40); }
 
@@ -780,13 +823,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   <div class="dialog-head"><h2 id="snoozeHeading">Later</h2><button type="button" class="dialog-close" data-close="snoozeDialog" aria-label="Close">&times;</button></div>
   <div class="dialog-body">
     <button type="button" class="queue-choice" id="backQueueBtn">Back of queue<span>Keep it due, but show other due Post-its first.</span></button>
-    <div class="hint">Or snooze it until a specific time:</div>
+    <div class="hint" id="snoozeHint">Or delay it until a specific time:</div>
     <div class="snooze-grid">
       <button type="button" data-snooze="10">10 min</button>
       <button type="button" data-snooze="30">30 min</button>
       <button type="button" data-snooze="60">1 hour</button>
       <button type="button" data-snooze="180">3 hours</button>
-      <button type="button" data-snooze="tomorrow">Tomorrow</button>
+      <button type="button" data-snooze="day">1 day</button>
+      <button type="button" data-snooze="week">1 week</button>
+      <button type="button" data-snooze="twoweeks">2 weeks</button>
+      <button type="button" data-snooze="month">1 month</button>
       <button type="button" data-snooze="nextworkday">Next workday</button>
     </div>
     <div class="field"><label for="customSnooze">Or choose a date and time</label><input type="datetime-local" id="customSnooze"></div>
@@ -828,7 +874,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     <div class="row3">
       <div class="field"><label for="editCategory">Category</label><input id="editCategory" list="categorySuggestions" maxlength="40"></div>
       <div class="field"><label for="editMinutes">Planned minutes</label><input id="editMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric"></div>
-      <div class="field"><label for="editColor">Colour</label><select id="editColor"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div>
+      <div class="field"><label for="editColor">Colour</label><select id="editColor"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option><option value="#fff3c4">Cream</option><option value="#ffb4a2">Coral</option><option value="#b8f2e6">Mint</option><option value="#a9def9">Sky</option><option value="#d8e2dc">Sage</option><option value="#e6e6e0">Grey</option></select></div>
     </div>
     <div class="row"><div class="field"><label for="editDate">Date</label><input id="editDate" type="date"></div><div class="field"><label for="editTime">Time</label><input id="editTime" type="time"></div></div>
     <div class="field"><label for="editRepeat">Repeat</label><select id="editRepeat"><option value="once">One time</option><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option><option value="custom">Custom interval...</option></select></div>
@@ -859,7 +905,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const STORAGE_SCOPE = location.pathname.replace(/\/index\.html$/i, '/').split('/').filter(Boolean).join('_') || 'root';
 
   const CONFIG = Object.freeze({
-    version: 3.4,
+    version: 3.5,
     storageKey: `postitReminderStateV3:${STORAGE_SCOPE}`,
     legacyStorageKey: 'postitReminderV1',
     snapshotKey: `postitReminderSnapshotsV3:${STORAGE_SCOPE}`,
@@ -874,7 +920,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     maxReminders: 5000,
     maxHistory: 20000,
     maxActivity: 50000,
-    colours: ['#fff18a', '#ffd6a5', '#caffbf', '#bde0fe', '#ffc8dd', '#e7c6ff'],
+    colours: ['#fff18a', '#ffd6a5', '#caffbf', '#bde0fe', '#ffc8dd', '#e7c6ff', '#fff3c4', '#ffb4a2', '#b8f2e6', '#a9def9', '#d8e2dc', '#e6e6e0'],
     repeats: ['once', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'],
     intervalRepeats: ['daily', 'weekly', 'monthly', 'yearly'],
     maxRepeatInterval: 99
@@ -883,7 +929,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const ICONS = Object.freeze({
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg>',
-    pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>'
+    pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>',
+    fastForward: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 7 6-7 6V6Zm9 0 7 6-7 6V6Z"/></svg>'
   });
 
   const $ = selector => document.querySelector(selector);
@@ -1149,7 +1196,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const result = migrateState(parsed);
       storageInfo.repairs = result.repairs.length;
       if (result.repairs.length) {
-        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.4.`;
+        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.5.`;
       }
       return result.state;
     } catch (error) {
@@ -1673,7 +1720,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       ${upNext ? '' : `<div class="micro-row"><button type="button" class="timer-btn ${timerActive ? 'active' : ''}" id="timerBtn">${timerText}</button>${waiting ? `<span class="behind">${waiting} more due</span>` : ''}</div>`}
       <div class="note-actions">
         ${upNext
-          ? '<button type="button" class="action ghost" id="startEarlyBtn">START NOW</button><button type="button" class="action primary" id="doneEarlyBtn">DONE EARLY</button>'
+          ? `<div class="upnext-icon-actions" role="group" aria-label="Upcoming Post-it actions">
+              <button type="button" class="note-icon-btn play" id="startEarlyBtn" aria-label="Start this Post-it now" data-tooltip="Start now">${ICONS.play}</button>
+              <button type="button" class="note-icon-btn delay" id="delayUpcomingBtn" aria-label="Delay this Post-it" data-tooltip="Delay">${ICONS.pause}</button>
+              <button type="button" class="note-icon-btn skip ${isRepeating(reminder) ? '' : 'unavailable'}" id="skipUpcomingBtn" aria-label="${isRepeating(reminder) ? 'Skip to the next scheduled occurrence' : 'Skip is unavailable because this Post-it does not repeat'}" aria-disabled="${isRepeating(reminder) ? 'false' : 'true'}" data-tooltip="${isRepeating(reminder) ? 'Skip to next occurrence' : 'No repeat cycle to skip'}">${ICONS.fastForward}</button>
+            </div>`
           : '<button type="button" class="action" id="delayBtn">LATER</button><button type="button" class="action primary" id="doneBtn">DONE</button>'}
       </div>`;
   }
@@ -1715,7 +1766,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       note.innerHTML = renderReminderBody(upcoming, {upNext: true});
       $('#moreCurrent').addEventListener('click', event => openEdit(upcoming.id, event.currentTarget));
       $('#startEarlyBtn').addEventListener('click', () => startReminderNow(upcoming.id, true));
-      $('#doneEarlyBtn').addEventListener('click', event => openDone(upcoming.id, event.currentTarget));
+      $('#delayUpcomingBtn').addEventListener('click', event => openSnooze(upcoming.id, event.currentTarget, 'upcoming'));
+      $('#skipUpcomingBtn').addEventListener('click', event => skipOccurrence(upcoming.id, {opener:event.currentTarget, closeDialogIfOpen:false}));
       return;
     }
 
@@ -1860,7 +1912,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="schedule-row"><input type="date" id="quickDate" value="${localDate(date)}" aria-label="Reminder date"><input type="time" id="quickTime" value="${localTime(date)}" aria-label="Reminder time"><select id="quickRepeat" aria-label="Repeat"><option value="once">One time</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="custom">Custom interval...</option></select></div>
       <div class="repeat-custom-row hidden" id="quickRepeatCustom" aria-hidden="true"><span>Every</span><input id="quickRepeatEvery" type="number" min="1" max="99" step="1" inputmode="numeric" value="2" aria-label="Repeat interval"><select id="quickRepeatUnit" aria-label="Repeat interval unit"><option value="daily">days</option><option value="weekly" selected>weeks</option><option value="monthly">months</option><option value="yearly">years</option></select></div>
       <div class="schedule-preview" id="quickSchedulePreview" aria-live="polite"></div>
-      <details class="capture-details"><summary>More options</summary><div class="details-grid"><div class="mini-field"><input id="quickCategory" list="categorySuggestions" maxlength="40" placeholder="Category e.g. Admin" aria-label="Category"></div><div class="mini-field"><input id="quickMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric" placeholder="Planned min" aria-label="Planned minutes"></div><div class="mini-field"><select id="quickColor" aria-label="Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div></div></details>
+      <details class="capture-details"><summary>More options</summary><div class="details-grid"><div class="mini-field"><input id="quickCategory" list="categorySuggestions" maxlength="40" placeholder="Category e.g. Admin" aria-label="Category"></div><div class="mini-field"><input id="quickMinutes" type="number" min="0" max="1440" step="1" inputmode="numeric" placeholder="Planned min" aria-label="Planned minutes"></div><div class="mini-field"><select id="quickColor" aria-label="Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option><option value="#fff3c4">Cream</option><option value="#ffb4a2">Coral</option><option value="#b8f2e6">Mint</option><option value="#a9def9">Sky</option><option value="#d8e2dc">Sage</option><option value="#e6e6e0">Grey</option></select></div></div></details>
       <div class="error-text" id="quickError" role="alert"></div>
       <div class="capture-buttons"><button type="button" class="cancel" id="captureCancel">Cancel</button><button type="button" class="save" id="captureSave">Create Post-it</button></div>`;
 
@@ -1955,11 +2007,21 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     toast('Post-it created.');
   }
 
-  function openSnooze(reminderId, opener) {
+  function openSnooze(reminderId, opener, context = 'auto') {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder) return;
     ui.currentReminderId = reminderId;
+    const dueNow = isDue(reminder);
+    const upcomingContext = context === 'upcoming' || (!dueNow && context === 'auto');
     $('#snoozeError').textContent = '';
-    $('#customSnooze').value = isoLocal(new Date(Date.now() + 2 * 3600000));
-    $('#skipOccurrenceRow').classList.toggle('hidden', !isRepeating(state.reminders.find(item => item.id === reminderId)));
+    $('#snoozeHeading').textContent = upcomingContext ? 'Delay Post-it' : 'Later';
+    $('#backQueueBtn').classList.toggle('hidden', !dueNow);
+    $('#snoozeHint').textContent = upcomingContext
+      ? 'Move this occurrence later. Its repeat cycle stays the same.'
+      : 'Or delay it for a while:';
+    $('#skipOccurrenceRow').classList.toggle('hidden', upcomingContext || !isRepeating(reminder));
+    const base = upcomingContext ? effectiveDue(reminder) : now();
+    $('#customSnooze').value = isoLocal(new Date(base.getTime() + (upcomingContext ? 24 * 3600000 : 2 * 3600000)));
     openDialog($('#snoozeDialog'), opener);
   }
 
@@ -1976,14 +2038,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     });
   }
 
-  function skipOccurrence() {
-    const reminder = state.reminders.find(item => item.id === ui.currentReminderId);
-    if (!reminder || !isRepeating(reminder)) return;
+  function skipOccurrence(reminderId = ui.currentReminderId, {opener = null, closeDialogIfOpen = true} = {}) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder) return;
+    ui.currentReminderId = reminder.id;
+    if (!isRepeating(reminder)) {
+      toast('Skip is available for repeating Post-its. A one-off Post-it has no next occurrence.');
+      return;
+    }
     const skippedAt = now();
     const next = nextOccurrenceAfterCompletion(reminder, skippedAt);
     if (!next) return;
     if (!window.confirm(`Skip this occurrence? It will not be marked complete. The next one will be ${fmt(next)}.`)) return;
-    closeDialog($('#snoozeDialog'));
+    if (closeDialogIfOpen && $('#snoozeDialog').open) closeDialog($('#snoozeDialog'));
     runMutation({reason: 'skipping a repeating occurrence', undoMessage: `Occurrence skipped. Next: ${fmt(next)}.`, animate: true}, () => {
       logQueueActivity('skip', reminder, skippedAt);
       if (state.timer?.reminderId === reminder.id) state.timer = null;
@@ -1999,19 +2066,38 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   }
 
   function calculateSnooze(value, reminder) {
-    const date = now();
-    if (value === 'tomorrow') {
+    const effective = effectiveDue(reminder);
+    const isUpcoming = effective > now();
+    const base = isUpcoming ? new Date(effective) : now();
+    const date = new Date(base);
+    if (value === 'day') {
       date.setDate(date.getDate() + 1);
-      const scheduled = new Date(reminder.nextAt);
-      date.setHours(scheduled.getHours(), scheduled.getMinutes(), 0, 0);
       return date;
+    }
+    if (value === 'week') {
+      date.setDate(date.getDate() + 7);
+      return date;
+    }
+    if (value === 'twoweeks') {
+      date.setDate(date.getDate() + 14);
+      return date;
+    }
+    if (value === 'month') {
+      const anchorDay = date.getDate();
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const targetMonth = date.getMonth() + 1;
+      const targetYear = date.getFullYear() + Math.floor(targetMonth / 12);
+      const month = ((targetMonth % 12) + 12) % 12;
+      const lastDay = new Date(targetYear, month + 1, 0).getDate();
+      return new Date(targetYear, month, Math.min(anchorDay, lastDay), hours, minutes, 0, 0);
     }
     if (value === 'nextworkday') {
       do { date.setDate(date.getDate() + 1); } while ([0,6].includes(date.getDay()));
-      date.setHours(8,0,0,0);
+      if (!isUpcoming) date.setHours(8,0,0,0);
       return date;
     }
-    return new Date(Date.now() + Number(value) * 60000);
+    return new Date(base.getTime() + Number(value) * 60000);
   }
 
   function applySnooze(value) {
@@ -2481,7 +2567,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const snapshots = readSnapshots();
     $('#drawerBody').innerHTML = `
       <div class="panel"><h3>Appearance</h3>
-        <div class="setting-row"><div><strong>Default Post-it colour</strong><span>Used for new reminders.</span></div><select id="defaultColor" aria-label="Default Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option></select></div>
+        <div class="setting-row"><div><strong>Default Post-it colour</strong><span>Used for new reminders.</span></div><select id="defaultColor" aria-label="Default Post-it colour"><option value="#fff18a">Yellow</option><option value="#ffd6a5">Peach</option><option value="#caffbf">Green</option><option value="#bde0fe">Blue</option><option value="#ffc8dd">Pink</option><option value="#e7c6ff">Purple</option><option value="#fff3c4">Cream</option><option value="#ffb4a2">Coral</option><option value="#b8f2e6">Mint</option><option value="#a9def9">Sky</option><option value="#d8e2dc">Sage</option><option value="#e6e6e0">Grey</option></select></div>
         <div class="setting-row"><div><strong>Post-it position</strong><span>Drag the small grip at the top, or reset it here.</span></div><button type="button" class="secondary-btn" id="centreNote">Centre Post-it</button></div>
       </div>
       <div class="panel"><h3>Voice capture</h3><p class="small">${speechSupported() ? 'Voice-to-text is available. The microphone starts only after you press the microphone button.' : 'This browser is not exposing voice recognition. Typing remains fully available.'}</p><p class="tiny muted">The browser controls microphone permission and speech processing.</p></div>
@@ -2489,7 +2575,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="panel"><h3>Recovery points</h3><p class="small">The app keeps up to ${CONFIG.maxSnapshots} recent local recovery points before important changes. They stay on this computer only.</p><div class="snapshot-list">${snapshots.length ? snapshots.map(snapshot => `<div class="snapshot-item"><div><strong>${esc(snapshot.reason)}</strong><span>${esc(fmt(snapshot.createdAt))}</span></div><button type="button" class="secondary-btn" data-restore-snapshot="${esc(snapshot.id)}">Restore</button></div>`).join('') : '<div class="muted small">No recovery points yet.</div>'}</div></div>
       <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> open Later options for the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
       <div class="panel"><h3>Data safety</h3><p class="small">A yearly CSV and printable report are available under Time and history.</p><button type="button" class="danger-btn" id="resetBtn">Reset all data</button></div>
-      <div class="panel"><h3>About V3.4</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, a due queue, progressive attention, compact top tools, and year-end activity reporting.</p></div>`;
+      <div class="panel"><h3>About V3.5</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, a due queue, progressive attention, compact top tools, quick upcoming actions, and year-end activity reporting.</p></div>`;
     $('#defaultColor').value = validColour(state.settings.defaultColor);
     $('#defaultColor').addEventListener('change', event => {
       state.settings.defaultColor = validColour(event.target.value);

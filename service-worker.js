@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'postit-reminder-v3-4-top-tools';
+const CACHE_NAME = 'postit-reminder-v3-5-quick-actions';
 const APP_SHELL = [
   './',
   './index.html',

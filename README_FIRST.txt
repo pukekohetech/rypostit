@@ -1,12 +1,17 @@
-POST-IT REMINDER V3.4 - COMPACT TOP TOOLS PWA
+POST-IT REMINDER V3.5 - QUICK ACTIONS + MORE COLOURS PWA
 ===========================================================
 
 WHAT CHANGED
 ------------
-V3.4 keeps V3.3's durable saving, flexible repeats, queue and attention system.
-The pop-out TOOLS rail has been removed. New, voice, all Post-its, history, and
-settings are now small always-visible icons across the top of the Post-it beside the
-three-dot reminder menu. The underlying reminder behaviour is unchanged.
+V3.5 keeps V3.4's durable saving, flexible repeats, queue, attention system and compact top tools. Upcoming reminders now use small Start, Delay and Skip icons, and the colour palette is expanded.
+The compact top tools remain: New, voice, all Post-its, history, and settings are small
+always-visible icons across the top beside the three-dot reminder menu.
+
+When you are caught up and an upcoming Post-it is shown, DONE EARLY has been removed.
+It now uses three small icon actions:
+- Play: bring the Post-it forward now and start its timer.
+- Pause/Delay: postpone the current occurrence without changing the underlying repeat cycle.
+- Fast-forward/Skip: on a repeating Post-it, skip this occurrence and jump to its next scheduled occurrence without marking it complete.
 
 The main due-note action remains LATER. It opens these choices:
 
@@ -14,9 +19,10 @@ The main due-note action remains LATER. It opens these choices:
   Keeps the reminder due and keeps its real scheduled date unchanged, but moves it
   behind other due Post-its. Each use is recorded as a deferral.
 
-- Snooze choices
-  10 minutes, 30 minutes, 1 hour, 3 hours, tomorrow, next workday, or a custom date
-  and time. Snoozing genuinely hides the reminder until that time.
+- Delay choices
+  10 minutes, 30 minutes, 1 hour, 3 hours, 1 day, 1 week, 2 weeks, 1 month, next
+  workday, or a custom date and time. For an upcoming Post-it, relative delays are
+  added to its current due time so a delay never accidentally brings it forward.
 
 - Skip occurrence
   Available on repeating reminders. This does NOT mark the task complete. It records
@@ -36,6 +42,12 @@ penalty so another due Post-it is shown first. As time passes, and especially if
 same reminder is deferred repeatedly, its attention score allows it to rise back toward
 the front rather than staying buried indefinitely.
 
+MORE COLOURS
+------------
+The Post-it palette now has 12 choices: Yellow, Peach, Green, Blue, Pink, Purple,
+Cream, Coral, Mint, Sky, Sage, and Grey. The expanded palette is available when
+creating, editing, or choosing the default Post-it colour.
+
 YEAR-END REPORTING
 ------------------
 Time and history now also records:
@@ -49,7 +61,7 @@ information.
 
 DATA COMPATIBILITY
 ------------------
-V3.4 intentionally uses the SAME storage namespace as V3.1/V3.2/V3.3 on the same GitHub
+V3.5 intentionally uses the SAME storage namespace as V3.1/V3.2/V3.3/V3.4 on the same GitHub
 Pages path. Existing reminders and completion history migrate automatically. New
 fields default safely to zero/empty values, and old backups remain importable.
 
