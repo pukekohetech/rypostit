@@ -439,6 +439,123 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .action.primary:hover { background: var(--accent-hover); }
 .action.ghost { background: rgba(255,255,255,0.40); }
 
+
+.upcoming-board {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.board-heading {
+  margin: 10px 0 3px;
+  font-size: clamp(1.45rem, 5.5vw, 1.85rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.board-summary {
+  margin: 0 0 11px;
+  color: #675f50;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.upcoming-list {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+.upcoming-row {
+  display: grid;
+  grid-template-columns: 7px minmax(0,1fr) auto;
+  gap: 9px;
+  align-items: center;
+  padding: 6px 7px 6px 0;
+  border: 1px solid rgba(58,52,39,0.12);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.34);
+}
+.upcoming-row.due { background: rgba(255,255,255,0.48); }
+.upcoming-row.attention-1 { box-shadow: inset 0 0 0 1px rgba(183,126,35,0.34); }
+.upcoming-row.attention-2 { box-shadow: inset 0 0 0 2px rgba(197,103,32,0.36); }
+.upcoming-row.attention-3 { box-shadow: inset 0 0 0 2px rgba(155,61,54,0.44); }
+.upcoming-swatch {
+  align-self: stretch;
+  min-height: 38px;
+  border-radius: 10px 0 0 10px;
+}
+.upcoming-info { min-width: 0; }
+.upcoming-title-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 790;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upcoming-title-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+.upcoming-row-meta {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  color: #6f6858;
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
+.upcoming-row-meta .urgent { color: #87372f; font-weight: 780; }
+.upcoming-row-meta .attention-label { color: #8a5a21; font-weight: 780; }
+.upcoming-row.attention-3 .attention-label { color: #8b302a; }
+.upcoming-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.upcoming-row .note-icon-btn {
+  width: 30px;
+  height: 30px;
+  background: rgba(255,255,255,0.30);
+}
+.upcoming-row .note-icon-btn svg { width: 14px; height: 14px; }
+.upcoming-row .note-icon-btn.skip svg { width: 16px; height: 16px; }
+.board-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-top: 7px;
+  color: #6a6353;
+  font-size: 0.7rem;
+}
+.board-footer button {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.38);
+  color: inherit;
+  font-weight: 750;
+}
+.paused-work {
+  color: #655d4d;
+  font-weight: 780;
+}
+@media (max-width: 440px) {
+  .upcoming-row { grid-template-columns: 6px minmax(0,1fr); padding-right: 7px; }
+  .upcoming-actions { grid-column: 2; justify-content: flex-end; margin-top: 2px; }
+  .upcoming-row .note-icon-btn { width: 32px; height: 32px; }
+}
+
 .empty-state {
   display: grid;
   place-items: center;
@@ -905,7 +1022,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   const STORAGE_SCOPE = location.pathname.replace(/\/index\.html$/i, '/').split('/').filter(Boolean).join('_') || 'root';
 
   const CONFIG = Object.freeze({
-    version: 3.5,
+    version: 3.6,
     storageKey: `postitReminderStateV3:${STORAGE_SCOPE}`,
     legacyStorageKey: 'postitReminderV1',
     snapshotKey: `postitReminderSnapshotsV3:${STORAGE_SCOPE}`,
@@ -923,7 +1040,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     colours: ['#fff18a', '#ffd6a5', '#caffbf', '#bde0fe', '#ffc8dd', '#e7c6ff', '#fff3c4', '#ffb4a2', '#b8f2e6', '#a9def9', '#d8e2dc', '#e6e6e0'],
     repeats: ['once', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'],
     intervalRepeats: ['daily', 'weekly', 'monthly', 'yearly'],
-    maxRepeatInterval: 99
+    maxRepeatInterval: 99,
+    boardLimit: 8
   });
 
   const ICONS = Object.freeze({
@@ -1109,6 +1227,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         snoozeCount: safeNumber(rawReminder.snoozeCount, 0, 100000),
         deferralCount: safeNumber(rawReminder.deferralCount, 0, 100000),
         queueDeferredAt: isValidDate(rawReminder.queueDeferredAt) ? new Date(rawReminder.queueDeferredAt).toISOString() : null,
+        bankedTimerMs: safeNumber(rawReminder.bankedTimerMs, 0, 30 * 24 * 60 * 60 * 1000),
         active: rawReminder.active !== false,
         paused: Boolean(rawReminder.paused),
         createdAt: isValidDate(rawReminder.createdAt) ? new Date(rawReminder.createdAt).toISOString() : now().toISOString(),
@@ -1196,7 +1315,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const result = migrateState(parsed);
       storageInfo.repairs = result.repairs.length;
       if (result.repairs.length) {
-        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.5.`;
+        storageInfo.message = `${result.repairs.length} saved field${result.repairs.length === 1 ? ' was' : 's were'} repaired safely while upgrading to V3.6.`;
       }
       return result.state;
     } catch (error) {
@@ -1633,12 +1752,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     return candidate;
   }
 
-  function timerElapsedMs(reminderId) {
+  function timerSessionElapsedMs(reminderId) {
     const timer = state.timer;
     if (!timer || timer.reminderId !== reminderId) return 0;
     const accumulated = Math.max(0, Number(timer.accumulatedMs) || 0);
     if (timer.pausedAt || !timer.startedAt) return accumulated;
     return accumulated + Math.max(0, Date.now() - new Date(timer.startedAt).getTime());
+  }
+
+  function timerElapsedMs(reminderId) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    const banked = Math.max(0, Number(reminder?.bankedTimerMs) || 0);
+    return banked + timerSessionElapsedMs(reminderId);
+  }
+
+  function stashCurrentTimer() {
+    const timer = state.timer;
+    if (!timer?.reminderId) return;
+    const reminder = state.reminders.find(item => item.id === timer.reminderId);
+    if (reminder) {
+      reminder.bankedTimerMs = Math.max(0, Number(reminder.bankedTimerMs) || 0) + timerSessionElapsedMs(reminder.id);
+      reminder.updatedAt = now().toISOString();
+    }
+    state.timer = null;
   }
 
   function timerMinutes(reminderId) {
@@ -1669,7 +1805,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         persistState();
         toast('Timer resumed.');
       } else {
-        existing.accumulatedMs = timerElapsedMs(reminderId);
+        existing.accumulatedMs = timerSessionElapsedMs(reminderId);
         existing.startedAt = null;
         existing.pausedAt = now().toISOString();
         persistState();
@@ -1686,6 +1822,120 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
   function reminderDisplayTitle(reminder) {
     return reminder.title.trim() || reminder.text.trim().split(/\n/)[0].slice(0, 80) || 'Post-it';
+  }
+
+
+  function activeWorkingReminder() {
+    const timer = state.timer;
+    if (!timer || !timer.reminderId || timer.pausedAt || !timer.startedAt) return null;
+    const reminder = state.reminders.find(item => item.id === timer.reminderId);
+    if (!reminder || reminder.active === false || reminder.paused) return null;
+    return reminder;
+  }
+
+  function boardItems() {
+    const due = dueList();
+    const dueIds = new Set(due.map(reminder => reminder.id));
+    const upcoming = upcomingList().filter(reminder => !dueIds.has(reminder.id));
+    return {due, upcoming, rows: [...due, ...upcoming]};
+  }
+
+  function boardStatus(reminder, due) {
+    if (due) return overdueText(effectiveDue(reminder));
+    if (reminder.snoozedUntil) return `Returns ${fmtShort(effectiveDue(reminder))}`;
+    return fmtShort(effectiveDue(reminder));
+  }
+
+  function renderUpcomingBoard(note) {
+    const {due, upcoming, rows} = boardItems();
+    const visible = rows.slice(0, CONFIG.boardLimit);
+    const hiddenCount = Math.max(0, rows.length - visible.length);
+    ui.currentReminderId = null;
+    note.style.backgroundColor = validColour(state.settings.defaultColor);
+    const summary = due.length
+      ? `${due.length} due${upcoming.length ? ` · ${upcoming.length} upcoming` : ''}`
+      : `${upcoming.length} scheduled`;
+
+    note.innerHTML = `
+      <div class="upcoming-board">
+        <div class="note-head"><span class="chip">Ready when you are</span><button type="button" class="more-btn" id="moreBoard" aria-label="Open all Post-its" title="Open all Post-its">&bull;&bull;&bull;</button></div>
+        <h1 class="board-heading">Upcoming actions</h1>
+        <p class="board-summary">${esc(summary)}</p>
+        <div class="upcoming-list" id="upcomingBoardList" role="list">
+          ${visible.map(reminder => {
+            const dueNow = isDue(reminder);
+            const attention = dueNow ? attentionMetrics(reminder) : {level:0,label:'',deferrals:0};
+            const pausedTimer = state.timer?.reminderId === reminder.id && Boolean(state.timer.pausedAt || !state.timer.startedAt);
+            const trackedMs = timerElapsedMs(reminder.id);
+            const hasSavedTime = trackedMs > 0 && !activeWorkingReminder();
+            const status = boardStatus(reminder, dueNow);
+            const title = reminderDisplayTitle(reminder);
+            const repeat = repeatLabel(reminder.repeat, reminder.repeatInterval);
+            return `<article class="upcoming-row ${dueNow ? 'due' : ''} ${attention.level ? `attention-${attention.level}` : ''}" role="listitem" data-reminder-id="${esc(reminder.id)}">
+              <div class="upcoming-swatch" style="background:${validColour(reminder.color)}" aria-hidden="true"></div>
+              <div class="upcoming-info">
+                <button type="button" class="upcoming-title-btn" data-board-action="edit" data-id="${esc(reminder.id)}" title="Edit ${esc(title)}">${esc(title)}</button>
+                <div class="upcoming-row-meta">
+                  <span class="${dueNow ? 'urgent' : ''}">${esc(status)}</span>
+                  ${reminder.category ? `<span>· ${esc(reminder.category)}</span>` : ''}
+                  <span>· ${esc(repeat)}</span>
+                  ${hasSavedTime ? `<span class="paused-work">· ${pausedTimer ? 'Paused' : 'Tracked'} ${esc(humanDurationMs(trackedMs))}</span>` : ''}
+                  ${attention.level ? `<span class="attention-label">· ${esc(attention.label)}${attention.deferrals ? ` ${attention.deferrals}×` : ''}</span>` : ''}
+                </div>
+              </div>
+              <div class="upcoming-actions" role="group" aria-label="Actions for ${esc(title)}">
+                <button type="button" class="note-icon-btn play" data-board-action="start" data-id="${esc(reminder.id)}" aria-label="${hasSavedTime ? 'Resume' : 'Start'} ${esc(title)}" title="${hasSavedTime ? 'Resume' : 'Start'}" data-tooltip="${hasSavedTime ? 'Resume' : 'Start'}">${ICONS.play}</button>
+                <button type="button" class="note-icon-btn delay" data-board-action="delay" data-id="${esc(reminder.id)}" aria-label="Delay ${esc(title)}" title="Delay" data-tooltip="Delay">${ICONS.pause}</button>
+                <button type="button" class="note-icon-btn skip ${isRepeating(reminder) ? '' : 'unavailable'}" data-board-action="skip" data-id="${esc(reminder.id)}" aria-label="${isRepeating(reminder) ? `Skip ${esc(title)} to its next occurrence` : `${esc(title)} does not repeat`}" aria-disabled="${isRepeating(reminder) ? 'false' : 'true'}" title="${isRepeating(reminder) ? 'Skip to next occurrence' : 'No repeat cycle to skip'}" data-tooltip="${isRepeating(reminder) ? 'Skip to next occurrence' : 'No repeat cycle to skip'}">${ICONS.fastForward}</button>
+              </div>
+            </article>`;
+          }).join('')}
+        </div>
+        <div class="board-footer"><span>${hiddenCount ? `${hiddenCount} more action${hiddenCount === 1 ? '' : 's'}` : 'Play starts a focused work session'}</span><button type="button" id="boardAllBtn">All Post-its</button></div>
+      </div>`;
+
+    $('#moreBoard').addEventListener('click', event => openDrawer('notes', event.currentTarget));
+    $('#boardAllBtn').addEventListener('click', event => openDrawer('notes', event.currentTarget));
+    $('#upcomingBoardList').addEventListener('click', event => {
+      const button = event.target.closest('[data-board-action]');
+      if (!button) return;
+      const reminderId = button.dataset.id;
+      const action = button.dataset.boardAction;
+      if (action === 'edit') openEdit(reminderId, button);
+      else if (action === 'start') startReminderFromBoard(reminderId);
+      else if (action === 'delay') {
+        const reminder = state.reminders.find(item => item.id === reminderId);
+        if (reminder) openSnooze(reminderId, button, isDue(reminder) ? 'auto' : 'upcoming');
+      } else if (action === 'skip') {
+        const reminder = state.reminders.find(item => item.id === reminderId);
+        if (!reminder || !isRepeating(reminder)) {
+          toast('Skip is available for repeating Post-its.');
+          return;
+        }
+        skipOccurrence(reminderId, {opener:button, closeDialogIfOpen:false});
+      }
+    });
+  }
+
+  function startReminderFromBoard(reminderId) {
+    const reminder = state.reminders.find(item => item.id === reminderId);
+    if (!reminder || reminder.active === false || reminder.paused) return;
+    const existing = state.timer;
+    if (existing?.reminderId === reminderId && (existing.pausedAt || !existing.startedAt)) {
+      const previous = deepClone(state);
+      reminder.manualDueAt = new Date(Date.now() - 1000).toISOString();
+      reminder.snoozedUntil = null;
+      reminder.queueDeferredAt = null;
+      reminder.updatedAt = now().toISOString();
+      existing.startedAt = now().toISOString();
+      existing.firstStartedAt = existing.firstStartedAt || existing.startedAt;
+      existing.pausedAt = null;
+      saveRecoverySnapshot(previous, 'Before resuming a Post-it');
+      persistState();
+      toast('Post-it resumed.');
+      return;
+    }
+    startReminderNow(reminderId, true);
   }
 
   function renderReminderBody(reminder, {upNext = false, waiting = 0} = {}) {
@@ -1723,7 +1973,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
           ? `<div class="upnext-icon-actions" role="group" aria-label="Upcoming Post-it actions">
               <button type="button" class="note-icon-btn play" id="startEarlyBtn" aria-label="Start this Post-it now" data-tooltip="Start now">${ICONS.play}</button>
               <button type="button" class="note-icon-btn delay" id="delayUpcomingBtn" aria-label="Delay this Post-it" data-tooltip="Delay">${ICONS.pause}</button>
-              <button type="button" class="note-icon-btn skip ${isRepeating(reminder) ? '' : 'unavailable'}" id="skipUpcomingBtn" aria-label="${isRepeating(reminder) ? 'Skip to the next scheduled occurrence' : 'Skip is unavailable because this Post-it does not repeat'}" aria-disabled="${isRepeating(reminder) ? 'false' : 'true'}" data-tooltip="${isRepeating(reminder) ? 'Skip to next occurrence' : 'No repeat cycle to skip'}">${ICONS.fastForward}</button>
+              <button type="button" class="note-icon-btn skip ${isRepeating(reminder) ? '' : 'unavailable'}" id="skipUpcomingBtn" aria-label="${isRepeating(reminder) ? 'Skip to the next scheduled occurrence' : 'Skip is unavailable because this Post-it does not repeat'}" aria-disabled="${isRepeating(reminder) ? 'false' : 'true'}" title="${isRepeating(reminder) ? 'Skip to next occurrence' : 'No repeat cycle to skip'}" data-tooltip="${isRepeating(reminder) ? 'Skip to next occurrence' : 'No repeat cycle to skip'}">${ICONS.fastForward}</button>
             </div>`
           : '<button type="button" class="action" id="delayBtn">LATER</button><button type="button" class="action primary" id="doneBtn">DONE</button>'}
       </div>`;
@@ -1743,31 +1993,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
     const note = $('#postit');
     note.classList.remove('attention-1', 'attention-2', 'attention-3');
-    const due = dueList();
-    if (due.length) {
-      const reminder = due[0];
-      ui.currentReminderId = reminder.id;
-      note.style.backgroundColor = validColour(reminder.color);
-      const attention = attentionMetrics(reminder);
+
+    // A running timer means the user is actively working: keep the single focused Post-it.
+    const working = activeWorkingReminder();
+    if (working) {
+      ui.currentReminderId = working.id;
+      note.style.backgroundColor = validColour(working.color);
+      const attention = isDue(working) ? attentionMetrics(working) : {level:0};
       if (attention.level) note.classList.add(`attention-${attention.level}`);
-      note.innerHTML = renderReminderBody(reminder, {waiting: due.length - 1});
-      $('#moreCurrent').addEventListener('click', event => openEdit(reminder.id, event.currentTarget));
-      $('#delayBtn').addEventListener('click', event => openSnooze(reminder.id, event.currentTarget));
-      $('#doneBtn').addEventListener('click', event => openDone(reminder.id, event.currentTarget));
-      $('#timerBtn').addEventListener('click', () => toggleTimer(reminder.id));
-      if (state.timer?.reminderId === reminder.id && !state.timer.pausedAt && state.timer.startedAt) startTimerDisplay();
+      const waiting = Math.max(0, dueList().filter(item => item.id !== working.id).length);
+      note.innerHTML = renderReminderBody(working, {waiting});
+      $('#moreCurrent').addEventListener('click', event => openEdit(working.id, event.currentTarget));
+      $('#delayBtn').addEventListener('click', event => openSnooze(working.id, event.currentTarget));
+      $('#doneBtn').addEventListener('click', event => openDone(working.id, event.currentTarget));
+      $('#timerBtn').addEventListener('click', () => toggleTimer(working.id));
+      startTimerDisplay();
       return;
     }
 
-    const upcoming = upcomingList()[0];
-    if (upcoming) {
-      ui.currentReminderId = upcoming.id;
-      note.style.backgroundColor = validColour(upcoming.color);
-      note.innerHTML = renderReminderBody(upcoming, {upNext: true});
-      $('#moreCurrent').addEventListener('click', event => openEdit(upcoming.id, event.currentTarget));
-      $('#startEarlyBtn').addEventListener('click', () => startReminderNow(upcoming.id, true));
-      $('#delayUpcomingBtn').addEventListener('click', event => openSnooze(upcoming.id, event.currentTarget, 'upcoming'));
-      $('#skipUpcomingBtn').addEventListener('click', event => skipOccurrence(upcoming.id, {opener:event.currentTarget, closeDialogIfOpen:false}));
+    // Idle state: show a compact actionable list rather than forcing one reminder to dominate.
+    const items = boardItems().rows;
+    if (items.length) {
+      renderUpcomingBoard(note);
       return;
     }
 
@@ -1994,6 +2241,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       snoozeCount: 0,
       deferralCount: 0,
       queueDeferredAt: null,
+      bankedTimerMs: 0,
       active: true,
       paused: false,
       createdAt: now().toISOString(),
@@ -2030,6 +2278,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     if (!reminder || !isDue(reminder)) return;
     closeDialog($('#snoozeDialog'));
     runMutation({reason: 'putting a Post-it at the back of the queue', undoMessage: 'Post-it moved to the back of the due queue.', animate: true}, () => {
+      pauseWorkingTimer(reminder.id);
       reminder.deferralCount = safeNumber(reminder.deferralCount + 1, 0, 100000);
       reminder.queueDeferredAt = now().toISOString();
       reminder.updatedAt = now().toISOString();
@@ -2054,6 +2303,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     runMutation({reason: 'skipping a repeating occurrence', undoMessage: `Occurrence skipped. Next: ${fmt(next)}.`, animate: true}, () => {
       logQueueActivity('skip', reminder, skippedAt);
       if (state.timer?.reminderId === reminder.id) state.timer = null;
+      reminder.bankedTimerMs = 0;
       reminder.nextAt = next.toISOString();
       reminder.snoozedUntil = null;
       reminder.manualDueAt = null;
@@ -2063,6 +2313,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       reminder.updatedAt = skippedAt.toISOString();
       if (ui.pinnedReminderId === reminder.id) ui.pinnedReminderId = null;
     });
+  }
+
+  function pauseWorkingTimer(reminderId) {
+    const timer = state.timer;
+    if (!timer || timer.reminderId !== reminderId || timer.pausedAt || !timer.startedAt) return;
+    timer.accumulatedMs = timerSessionElapsedMs(reminderId);
+    timer.startedAt = null;
+    timer.pausedAt = now().toISOString();
   }
 
   function calculateSnooze(value, reminder) {
@@ -2106,6 +2364,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     const date = calculateSnooze(value, reminder);
     closeDialog($('#snoozeDialog'));
     runMutation({reason: 'delaying a Post-it', undoMessage: `Post-it delayed until ${fmt(date)}.`, animate: true}, () => {
+      pauseWorkingTimer(reminder.id);
       reminder.snoozedUntil = date.toISOString();
       reminder.manualDueAt = null;
       reminder.queueDeferredAt = null;
@@ -2128,6 +2387,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     if (!reminder) return;
     closeDialog($('#snoozeDialog'));
     runMutation({reason: 'delaying a Post-it', undoMessage: `Post-it delayed until ${fmt(date)}.`, animate: true}, () => {
+      pauseWorkingTimer(reminder.id);
       reminder.snoozedUntil = date.toISOString();
       reminder.manualDueAt = null;
       reminder.queueDeferredAt = null;
@@ -2220,6 +2480,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
         timerStartedAt: state.timer?.reminderId === reminder.id ? (state.timer.firstStartedAt || state.timer.startedAt) : null
       });
       if (state.timer?.reminderId === reminder.id) state.timer = null;
+      reminder.bankedTimerMs = 0;
       if (repeatsAgain) {
         const next = nextOccurrenceAfterCompletion(reminder, completedAt);
         reminder.nextAt = next.toISOString();
@@ -2244,17 +2505,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   function startReminderNow(reminderId, startTimer = false) {
     const reminder = state.reminders.find(item => item.id === reminderId);
     if (!reminder || reminder.paused || reminder.active === false) return;
-    if (startTimer && state.timer && state.timer.reminderId !== reminderId && !window.confirm('Another Post-it timer is running. Replace it with this timer?')) return;
     const previous = deepClone(state);
+    const existing = state.timer;
+    if (startTimer && existing && existing.reminderId !== reminderId) {
+      const other = state.reminders.find(item => item.id === existing.reminderId);
+      if (!existing.pausedAt && existing.startedAt) {
+        const otherName = other ? reminderDisplayTitle(other) : 'the other Post-it';
+        if (!window.confirm(`Switch from ${otherName} to this Post-it? The time already tracked on the other item will be kept.`)) return;
+      }
+      stashCurrentTimer();
+    }
     reminder.manualDueAt = new Date(Date.now() - 1000).toISOString();
     reminder.snoozedUntil = null;
     reminder.queueDeferredAt = null;
     reminder.updatedAt = now().toISOString();
-    if (startTimer) state.timer = {reminderId, startedAt: now().toISOString(), firstStartedAt: now().toISOString(), accumulatedMs: 0, pausedAt: null};
+    if (startTimer) {
+      if (state.timer?.reminderId === reminderId && (state.timer.pausedAt || !state.timer.startedAt)) {
+        state.timer.startedAt = now().toISOString();
+        state.timer.firstStartedAt = state.timer.firstStartedAt || state.timer.startedAt;
+        state.timer.pausedAt = null;
+      } else if (!state.timer || state.timer.reminderId !== reminderId) {
+        state.timer = {reminderId, startedAt: now().toISOString(), firstStartedAt: now().toISOString(), accumulatedMs: 0, pausedAt: null};
+      }
+    }
     saveRecoverySnapshot(previous, 'Before starting a Post-it early');
     closeDrawer();
     persistState();
-    toast(startTimer ? 'Post-it started early and timer started.' : 'Post-it brought to the front.');
+    toast(startTimer ? 'Post-it started and timer running.' : 'Post-it brought to the front.');
   }
 
   function editFormSignature() {
@@ -2356,6 +2633,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       queueDeferredAt: null,
       updatedAt: now().toISOString()
     });
+    if (reminder.paused && state.timer?.reminderId === reminder.id) stashCurrentTimer();
     closeDialog($('#editDialog'), true);
     saveRecoverySnapshot(previous, 'Before editing a Post-it');
     persistState();
@@ -2478,7 +2756,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       const previous = deepClone(state);
       reminder.paused = !reminder.paused;
       reminder.updatedAt = now().toISOString();
-      if (reminder.paused && state.timer?.reminderId === reminder.id) state.timer = null;
+      if (reminder.paused && state.timer?.reminderId === reminder.id) stashCurrentTimer();
       saveRecoverySnapshot(previous, `Before ${reminder.paused ? 'pausing' : 'resuming'} a Post-it`);
       persistState();
       toast(reminder.paused ? 'Post-it paused.' : 'Post-it resumed.');
@@ -2575,7 +2853,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
       <div class="panel"><h3>Recovery points</h3><p class="small">The app keeps up to ${CONFIG.maxSnapshots} recent local recovery points before important changes. They stay on this computer only.</p><div class="snapshot-list">${snapshots.length ? snapshots.map(snapshot => `<div class="snapshot-item"><div><strong>${esc(snapshot.reason)}</strong><span>${esc(fmt(snapshot.createdAt))}</span></div><button type="button" class="secondary-btn" data-restore-snapshot="${esc(snapshot.id)}">Restore</button></div>`).join('') : '<div class="muted small">No recovery points yet.</div>'}</div></div>
       <div class="panel"><h3>Keyboard</h3><p class="small"><strong>N</strong> new Post-it &nbsp; <strong>M</strong> open voice capture &nbsp; <strong>D</strong> open Later options for the due Post-it &nbsp; <strong>Enter</strong> complete the due Post-it &nbsp; <strong>Esc</strong> close</p><p class="tiny muted">When the move grip is focused, arrow keys move the Post-it. Hold Shift for larger steps.</p></div>
       <div class="panel"><h3>Data safety</h3><p class="small">A yearly CSV and printable report are available under Time and history.</p><button type="button" class="danger-btn" id="resetBtn">Reset all data</button></div>
-      <div class="panel"><h3>About V3.5</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, a due queue, progressive attention, compact top tools, quick upcoming actions, and year-end activity reporting.</p></div>`;
+      <div class="panel"><h3>About V3.6</h3><p class="small">A self-contained, offline-first Post-it reminder app with durable saving, flexible repeat intervals, an actionable upcoming-actions board, focused work sessions, progressive attention, compact top tools, and year-end activity reporting.</p></div>`;
     $('#defaultColor').value = validColour(state.settings.defaultColor);
     $('#defaultColor').addEventListener('change', event => {
       state.settings.defaultColor = validColour(event.target.value);
